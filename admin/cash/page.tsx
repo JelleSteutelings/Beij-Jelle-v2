@@ -1,0 +1,178 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { Customer, Sale } from "@/lib/types";
+import { brusselsWallTimeToDate, toBrusselsDateString } from "@/lib/tz";
+
+function formatDate(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
+function eur(n: number) {
+  return `€${n.toFixed(2)}`;
+}
+
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("nl-BE", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Brussels",
+  });
+}
+
+export default function CashPage() {
+  const [date, setDate] = useState(toBrusselsDateString(new Date()));
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/sales").then((r) => r.json()),
+      fetch("/api/customers").then((r) => r.json()),
+    ]).then(([s, c]) => {
+      setSales(s);
+      setCustomers(c);
+      setLoading(false);
+    });
+  }, []);
+
+  const dayStart = useMemo(() => brusselsWallTimeToDate(date, "00:00"), [date]);
+  const dayEnd = useMemo(() => {
+    const d = new Date(date + "T12:00:00");
+    d.setDate(d.getDate() + 1);
+    return brusselsWallTimeToDate(d.toISOString().slice(0, 10), "00:00");
+  }, [date]);
+
+  const daySales = useMemo(() => {
+    return sales
+      .filter((s) => {
+        const t = new Date(s.createdAt).getTime();
+        return t >= dayStart.getTime() && t < dayEnd.getTime();
+      })
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }, [sales, dayStart, dayEnd]);
+
+  const cashTotal = daySales
+    .filter((s) => s.paymentMethod === "cash")
+    .reduce((sum, s) => sum + s.total, 0);
+  const qrTotal = daySales
+    .filter((s) => s.paymentMethod === "qr")
+    .reduce((sum, s) => sum + s.total, 0);
+  const voucherTotal = daySales
+    .filter((s) => s.paymentMethod === "voucher")
+    .reduce((sum, s) => sum + s.total, 0);
+  const grandTotal = cashTotal + qrTotal + voucherTotal;
+
+  const customerName = (s: Sale) =>
+    s.customerName || customers.find((c) => c.id === s.customerId)?.name || "—";
+
+  function shiftDate(direction: 1 | -1) {
+    const d = new Date(date + "T12:00:00");
+    d.setDate(d.getDate() + direction);
+    setDate(formatDate(d));
+  }
+
+  const dateLabel = new Date(date + "T12:00:00").toLocaleDateString("nl-BE", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  return (
+    <div className="p-6 sm:p-10 max-w-2xl">
+      <h1 className="font-display text-2xl mb-1">Cash</h1>
+      <p className="text-cream/40 text-sm mb-6">Dagontvangsten, gesplitst per betaalwijze</p>
+
+      <div className="flex items-center gap-3 mb-8">
+        <button
+          onClick={() => shiftDate(-1)}
+          className="w-9 h-9 rounded-full border border-hairline hover:border-gold transition"
+        >
+          &larr;
+        </button>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="bg-panel border border-hairline rounded-lg px-4 py-2 focus:outline-none focus:border-gold [color-scheme:dark]"
+        />
+        <button
+          onClick={() => shiftDate(1)}
+          className="w-9 h-9 rounded-full border border-hairline hover:border-gold transition"
+        >
+          &rarr;
+        </button>
+        <button
+          onClick={() => setDate(toBrusselsDateString(new Date()))}
+          className="text-xs text-gold/80 hover:text-gold ml-1"
+        >
+          Vandaag
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="text-cream/40 text-sm">Laden...</p>
+      ) : (
+        <>
+          <p className="text-sm text-cream/50 mb-4">{dateLabel}</p>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+            <div className="border border-hairline rounded-xl p-4 bg-panel/30">
+              <p className="text-[11px] text-cream/40 mb-1">Cash</p>
+              <p className="font-display text-2xl text-gold-light">{eur(cashTotal)}</p>
+            </div>
+            <div className="border border-hairline rounded-xl p-4 bg-panel/30">
+              <p className="text-[11px] text-cream/40 mb-1">Payconiq / QR</p>
+              <p className="font-display text-2xl text-gold-light">{eur(qrTotal)}</p>
+            </div>
+            <div className="border border-hairline rounded-xl p-4 bg-panel/30">
+              <p className="text-[11px] text-cream/40 mb-1">Cadeaubon</p>
+              <p className="font-display text-2xl text-gold-light">{eur(voucherTotal)}</p>
+            </div>
+            <div className="border border-gold/50 rounded-xl p-4 bg-panel2/50">
+              <p className="text-[11px] text-gold/70 mb-1">Totaal</p>
+              <p className="font-display text-2xl text-gold-light">{eur(grandTotal)}</p>
+            </div>
+          </div>
+
+          <h2 className="text-xs text-gold/80 uppercase tracking-wide mb-2">
+            Verrichtingen ({daySales.length})
+          </h2>
+          {daySales.length === 0 ? (
+            <p className="text-cream/40 text-sm">Geen kassaverrichtingen op deze dag.</p>
+          ) : (
+            <ul className="space-y-2">
+              {daySales.map((s) => (
+                <li
+                  key={s.id}
+                  className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-hairline bg-panel/30"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm text-cream/80">
+                      {formatTime(s.createdAt)} &middot; {customerName(s)}
+                    </p>
+                    <p className="text-xs text-cream/40 truncate">
+                      {s.items.map((i) => `${i.qty}x ${i.name}`).join(", ")}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-display text-gold-light">{eur(s.total)}</p>
+                    <p className="text-[11px] text-cream/40">
+                      {s.paymentMethod === "cash"
+                        ? "Cash"
+                        : s.paymentMethod === "qr"
+                        ? "QR"
+                        : "Cadeaubon"}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </div>
+  );
+}

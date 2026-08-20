@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+  --font-body: "Avenir Next", Optima, "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+
+  /* Donker thema (standaard) — waarden als "R G B" voor Tailwind's alpha-ondersteuning */
+  --deep: 36 19 24;
+  --panel: 47 27 33;
+  --panel2: 58 33 41;
+  --cream: 246 234 215;
+  --gold-light: 243 196 99;
+  --gold: 224 168 63;
+  --gold-dark: 169 112 31;
+  --hairline-rgb: 224 168 63;
+  --watermark-opacity: 0.05;
+}
+
+html.light {
+  /* Licht thema — dezelfde tokens, omgekeerde rollen */
+  --deep: 250 245 235;
+  --panel: 255 255 255;
+  --panel2: 243 233 216;
+  --cream: 36 19 24;
+  --gold-light: 190 130 35;
+  --gold: 169 112 31;
+  --gold-dark: 122 79 21;
+  --hairline-rgb: 169 112 31;
+  --watermark-opacity: 0.035;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: rgb(var(--deep));
+  color: rgb(var(--cream));
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Signature "snip" divider echoing the scissor cut in the logo */
+  .snip-divider {
+    position: relative;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgb(var(--gold) / 0.55), transparent);
+    margin: 0 auto;
+  }
+  .snip-divider::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 7px;
+    height: 7px;
+    transform: translate(-50%, -50%) rotate(45deg);
+    background: rgb(var(--gold));
+  }
+
+  .eyebrow {
+    font-family: var(--font-body);
+    text-transform: uppercase;
+    letter-spacing: 0.28em;
+    font-size: 0.7rem;
+    color: rgb(var(--gold));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
