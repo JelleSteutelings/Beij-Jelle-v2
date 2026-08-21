@@ -85,6 +85,25 @@ export default function CashPage() {
     setCorrectingSale(null);
   }
 
+  // Zolang de dag nog niet definitief afgesloten is, is dit gewoon een
+  // fout ingegeven verrichting rechtzetten: geen reden nodig, geen
+  // correctielogje (dat is enkel voor wat er ná afsluiten nog verandert).
+  async function deleteDraftSale(s: Sale) {
+    if (
+      !confirm(
+        `Verkoop van ${customerName(s)} (€${s.total.toFixed(2)}) verwijderen?`
+      )
+    ) {
+      return;
+    }
+    await fetch(`/api/sales/${s.id}/void`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    await loadSales();
+  }
+
   const today = toBrusselsDateString(new Date());
   const closingForDate = useMemo(() => {
     const records = dayClosings.filter((c) => c.date === date);
@@ -278,20 +297,29 @@ export default function CashPage() {
                       {s.items.map((i) => `${i.qty}x ${i.name}`).join(", ")}
                     </p>
                     <div className="flex items-center gap-3 mt-1">
-                      {!isDayClosed && (
+                      {!isDayClosed ? (
+                        <>
+                          <button
+                            onClick={() => setEditingSale(s)}
+                            className="text-[11px] text-gold/70 hover:text-gold underline underline-offset-2"
+                          >
+                            Aanpassen
+                          </button>
+                          <button
+                            onClick={() => deleteDraftSale(s)}
+                            className="text-[11px] text-cream/30 hover:text-red-400 underline underline-offset-2"
+                          >
+                            Verwijderen
+                          </button>
+                        </>
+                      ) : (
                         <button
-                          onClick={() => setEditingSale(s)}
-                          className="text-[11px] text-gold/70 hover:text-gold underline underline-offset-2"
+                          onClick={() => setCorrectingSale(s)}
+                          className="text-[11px] text-cream/30 hover:text-red-400 underline underline-offset-2"
                         >
-                          Aanpassen
+                          Corrigeren
                         </button>
                       )}
-                      <button
-                        onClick={() => setCorrectingSale(s)}
-                        className="text-[11px] text-cream/30 hover:text-red-400 underline underline-offset-2"
-                      >
-                        Corrigeren
-                      </button>
                     </div>
                   </div>
                   <div className="text-right shrink-0">
