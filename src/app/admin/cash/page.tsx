@@ -1,10 +1,31 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Customer, DayClosing, Sale } from "@/lib/types";
+import { Booking, Customer, DayClosing, Sale } from "@/lib/types";
 import { brusselsWallTimeToDate, toBrusselsDateString } from "@/lib/tz";
 import CloseDayModal from "./CloseDayModal";
 import ReopenDayModal from "./ReopenDayModal";
+import CheckoutModal from "../agenda/CheckoutModal";
+import CorrectionReasonModal from "../agenda/CorrectionReasonModal";
+
+/** Bouwt een minimale Booking op basis van een Sale, enkel om CheckoutModal
+ * te kunnen tonen vanuit de dagontvangsten-lijst (die modal verwacht een
+ * "booking"-prop, maar gebruikt die bij het aanpassen van een bestaande
+ * verkoop enkel voor de klantnaam in de titel — de echte opslag gebeurt via
+ * PATCH /api/sales/[id] met de verkoop zelf). Werkt zowel voor verkopen
+ * gekoppeld aan een afspraak als voor losse verkopen (Snelle verkoop). */
+function pseudoBookingForSale(s: Sale): Booking {
+  return {
+    id: s.bookingId || s.id,
+    serviceId: s.items.find((i) => i.type === "service")?.refId || null,
+    customerId: s.customerId || null,
+    customerName: s.customerName,
+    start: s.createdAt,
+    end: s.createdAt,
+    status: "done",
+    createdAt: s.createdAt,
+  };
+}
 
 function formatDate(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -31,9 +52,15 @@ export default function CashPage() {
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [showReopenModal, setShowReopenModal] = useState(false);
   const [closeError, setCloseError] = useState<string | null>(null);
+  const [editingSale, setEditingSale] = useState<Sale | null>(null);
+  const [correctingSale, setCorrectingSale] = useState<Sale | null>(null);
 
   function loadDayClosings() {
     return fetch("/api/day-closings").then((r) => r.json()).then(setDayClosings);
+  }
+
+  function loadSales() {
+    return fetch("/api/sales").then((r) => r.json()).then(setSales);
   }
 
   useEffect(() => {
@@ -47,6 +74,16 @@ export default function CashPage() {
       setLoading(false);
     });
   }, []);
+
+  async function correctSale(saleId: string, reason: string) {
+    await fetch(`/api/sales/${saleId}/void`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason }),
+    });
+    await loadSales();
+    setCorrectingSale(null);
+  }
 
   const today = toBrusselsDateString(new Date());
   const closingForDate = useMemo(() => {
@@ -240,6 +277,22 @@ export default function CashPage() {
                     <p className="text-xs text-cream/40 truncate">
                       {s.items.map((i) => `${i.qty}x ${i.name}`).join(", ")}
                     </p>
+                    <div className="flex items-center gap-3 mt-1">
+                      {!isDayClosed && (
+                        <button
+                          onClick={() => setEditingSale(s)}
+                          className="text-[11px] text-gold/70 hover:text-gold underline underline-offset-2"
+                        >
+                          Aanpassen
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setCorrectingSale(s)}
+                        className="text-[11px] text-cream/30 hover:text-red-400 underline underline-offset-2"
+                      >
+                        Corrigeren
+                      </button>
+                    </div>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-display text-gold-light">{eur(s.total)}</p>
@@ -272,6 +325,28 @@ export default function CashPage() {
           dateLabel={dateLabel}
           onClose={() => setShowReopenModal(false)}
           onConfirm={reopenDay}
+        />
+      )}
+
+      {editingSale && (
+        <CheckoutModal
+          booking={pseudoBookingForSale(editingSale)}
+          service={null}
+          existingSale={editingSale}
+          onClose={() => setEditingSale(null)}
+          onDone={() => {
+            setEditingSale(null);
+            loadSales();
+          }}
+        />
+      )}
+
+      {correctingSale && (
+        <CorrectionReasonModal
+          customerName={customerName(correctingSale)}
+          total={correctingSale.total}
+          onClose={() => setCorrectingSale(null)}
+          onConfirm={(reason) => correctSale(correctingSale.id, reason)}
         />
       )}
     </div>
