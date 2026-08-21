@@ -103,6 +103,17 @@ src/
   ontvangst"). Zie `api/purchase-orders/`. Zelfde achterliggende principe
   als hierboven: annuleren kan enkel vóór ontvangst, en blijft zichtbaar
   met reden.
+- **Dagafsluiting bij de kassa**: `db.dayClosings` (`src/lib/dayClosing.ts`
+  → `isDayClosed()`). Zolang een dag niet afgesloten is, is een
+  kassaverkoop nog een soort "dag file": vrij aanpasbaar via "Kassa
+  aanpassen" (`PATCH /api/sales/[id]`) en er kunnen nog nieuwe
+  verrichtingen bijkomen (`POST /api/sales`). Eenmaal afgesloten (knop bij
+  Cash, `POST /api/day-closings`) geven beide routes een foutmelding — de
+  correctieflow (`/api/sales/[id]/void`) blijft bewust wél mogelijk, zelfde
+  precedent als hierboven. Heropenen (`POST /api/day-closings/reopen`)
+  vereist wachtwoord + verplichte reden, en blijft zichtbaar in de
+  geschiedenis (`reopenedAt`/`reopenReason` op het oude record, niet
+  verwijderd).
 
 ## Veelgemaakte vervolgvragen — patroon dat al bestaat
 

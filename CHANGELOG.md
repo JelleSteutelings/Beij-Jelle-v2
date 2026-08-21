@@ -4,6 +4,25 @@ Overzicht van alle aanpassingen, in omgekeerd-chronologische volgorde (nieuwste
 eerst). Nuttig om snel te zien wat er al gebouwd is, zonder de hele
 gespreksgeschiedenis te moeten doorzoeken.
 
+## 2026-08-21
+
+- **Dagafsluiting bij de kassa**: kassaverrichtingen komen niet langer
+  "los" te staan — zolang een dag nog niet definitief afgesloten is, blijft
+  ze een soort "dag file": nog vrij aan te passen via de bestaande "Kassa
+  aanpassen"-flow. Bij Cash staat nu een knop "Dag definitief afsluiten"
+  (met bevestiging + overzicht van wat er verandert). Eenmaal afgesloten:
+  - kan er niet meer via "Kassa aanpassen" gewijzigd worden aan verkopen
+    van die dag, en kunnen er geen nieuwe verrichtingen meer bijkomen voor
+    die datum (`PATCH`/`POST /api/sales` geven een duidelijke foutmelding);
+  - blijft de bestaande wachtwoord-beveiligde correctieflow (agenda →
+    kassaverrichting corrigeren, met reden) wél nog mogelijk — zelfde
+    precedent als elders: geen spoorloze wijzigingen, wel een audit-trail;
+  - kan de dag, per ongeluk te vroeg afgesloten, terug geopend worden bij
+    Cash achter dezelfde extra wachtwoordcontrole als bij Correcties, met
+    verplichte reden (nooit stilzwijgend).
+  Nieuw datamodel `DayClosing` (`db.dayClosings`), nieuwe endpoints
+  `GET/POST /api/day-closings` en `POST /api/day-closings/reopen`.
+
 ## 2026-08-20 (nacht)
 
 - **Diensten toevoegen en verwijderen** bij Instellingen → Diensten &amp;
