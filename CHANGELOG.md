@@ -4,6 +4,25 @@ Overzicht van alle aanpassingen, in omgekeerd-chronologische volgorde (nieuwste
 eerst). Nuttig om snel te zien wat er al gebouwd is, zonder de hele
 gespreksgeschiedenis te moeten doorzoeken.
 
+## 2026-08-21 (later op de dag)
+
+- **Cash-lijst kan nu ook aanpassen/verwijderen**: bij elke verrichting in
+  de dagontvangsten staat nu een knop om ze aan te passen (dezelfde "Kassa
+  aanpassen"-modal als in de Agenda) of te verwijderen/corrigeren — werkt
+  ook voor losse verkopen (Snelle verkoop) zonder gekoppelde afspraak, die
+  voorheen nergens achteraf aan te passen waren.
+- **Verwijderen vóór afsluiten logt niet meer**: zolang een dag nog niet
+  definitief is afgesloten, is een verkeerd ingegeven kassaverrichting
+  verwijderen nu een simpele bevestiging — geen reden meer nodig, en er
+  komt geen entry meer in het interne correctielogje (`db.correctionRecords`).
+  Dat logje is bewust enkel nog voor wat er ná de definitieve afsluiting
+  gecorrigeerd wordt (`POST /api/sales/[id]/void` bepaalt dit zelf aan de
+  hand van `isDayClosed()` op de datum van de verkoop) — dat was ook de
+  eigenlijke reden om dagafsluiting te vragen, niet om alles te loggen.
+  Zowel Cash als Agenda tonen daarom nu, afhankelijk van of de dag al
+  afgesloten is, een gewone "Verwijderen"-knop (geen reden) of de
+  bestaande "Corrigeren"-knop (reden verplicht, gelogd).
+
 ## 2026-08-21
 
 - **Dagafsluiting bij de kassa**: kassaverrichtingen komen niet langer

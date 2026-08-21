@@ -108,12 +108,20 @@ src/
   kassaverkoop nog een soort "dag file": vrij aanpasbaar via "Kassa
   aanpassen" (`PATCH /api/sales/[id]`) en er kunnen nog nieuwe
   verrichtingen bijkomen (`POST /api/sales`). Eenmaal afgesloten (knop bij
-  Cash, `POST /api/day-closings`) geven beide routes een foutmelding — de
-  correctieflow (`/api/sales/[id]/void`) blijft bewust wél mogelijk, zelfde
-  precedent als hierboven. Heropenen (`POST /api/day-closings/reopen`)
-  vereist wachtwoord + verplichte reden, en blijft zichtbaar in de
-  geschiedenis (`reopenedAt`/`reopenReason` op het oude record, niet
-  verwijderd).
+  Cash, `POST /api/day-closings`) geven beide routes een foutmelding.
+  Heropenen (`POST /api/day-closings/reopen`) vereist wachtwoord +
+  verplichte reden, en blijft zichtbaar in de geschiedenis
+  (`reopenedAt`/`reopenReason` op het oude record, niet verwijderd).
+  **Belangrijk**: `db.correctionRecords` wordt bij `/api/sales/[id]/void`
+  bewust ENKEL gevuld als de dag van de verkoop al afgesloten was op het
+  moment van verwijderen (de route bepaalt dit zelf via `isDayClosed()` op
+  de datum van de verkoop, `sale.createdAt`) — verwijderen vóór afsluiten
+  is gewoon een fout ingegeven verrichting rechtzetten (geen reden nodig,
+  geen log), pas ná afsluiten is een reden verplicht en komt het in het
+  logje terecht. Cash en Agenda tonen daarom, afhankelijk van
+  `isDayClosed`, ofwel een gewone "Verwijderen"-knop (geen reden, geen
+  modal — gewoon `confirm()`) ofwel "Corrigeren" (opent
+  `CorrectionReasonModal`, reden verplicht).
 
 ## Veelgemaakte vervolgvragen — patroon dat al bestaat
 
