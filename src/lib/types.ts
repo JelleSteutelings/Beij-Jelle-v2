@@ -150,6 +150,26 @@ export type CorrectionRecord = {
   correctedAt: string;
 };
 
+/** Registreert of een kalenderdag (kassa/dagontvangsten) definitief is
+ * afgesloten. Zolang er geen actieve afsluiting bestaat voor een datum,
+ * blijven kassaverrichtingen van die dag vrij aanpasbaar via "Kassa
+ * aanpassen" (Sale.PATCH) en kunnen er nieuwe verrichtingen bijkomen
+ * (Sale.POST) — dit is de "dag file"-fase. Na afsluiten kan dat niet meer;
+ * enkel de bestaande wachtwoord-beveiligde correctieflow
+ * (`db.correctionRecords`, `/api/sales/[id]/void`) blijft mogelijk, zodat er
+ * altijd een spoor blijft (zelfde precedent als correcties/bestellingen:
+ * geen spoorloze wijzigingen). Een dag kan meerdere records hebben over
+ * zijn geschiedenis (afsluiten → heropenen → opnieuw afsluiten, ...) — enkel
+ * het meest recente record zonder `reopenedAt` telt als "momenteel
+ * afgesloten"; oudere records blijven bewaard voor de geschiedenis. */
+export type DayClosing = {
+  id: string;
+  date: string; // "YYYY-MM-DD", Brusselse kalenderdag
+  closedAt: string;
+  reopenedAt?: string; // ingevuld zodra deze afsluiting heropend werd
+  reopenReason?: string;
+};
+
 export type GiftVoucher = {
   id: string;
   code: string; // referentiecode die Jelle zelf op de fysieke bon schrijft
@@ -223,5 +243,6 @@ export type DB = {
   cancellationRecords: CancellationRecord[];
   correctionRecords: CorrectionRecord[];
   sales: Sale[];
+  dayClosings: DayClosing[];
   settings: Settings;
 };

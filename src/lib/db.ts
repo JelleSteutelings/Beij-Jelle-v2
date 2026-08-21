@@ -19,6 +19,7 @@ function defaultDB(): DB {
     cancellationRecords: [],
     correctionRecords: [],
     sales: [],
+    dayClosings: [],
     settings: {
       businessName: "Doeëg Mêin Haore",
       ownerName: "Jelle Steutelings",
@@ -67,6 +68,7 @@ export function readDB(): DB {
   if (!db.noShowRecords) db.noShowRecords = [];
   if (!db.cancellationRecords) db.cancellationRecords = [];
   if (!db.correctionRecords) db.correctionRecords = [];
+  if (!db.dayClosings) db.dayClosings = [];
   db.products.forEach((p, i) => {
     if (p.order === undefined) p.order = i;
   });
