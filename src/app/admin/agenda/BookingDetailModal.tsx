@@ -26,7 +26,6 @@ function formatDateTime(iso: string) {
 export default function BookingDetailModal({
   booking,
   service,
-  isDayClosed,
   onClose,
   onCheckout,
   onCancel,
@@ -34,17 +33,10 @@ export default function BookingDetailModal({
   onRevertNoShow,
   onConfirm,
   onDelete,
-  onQuickDeleteSale,
   onCorrect,
 }: {
   booking: Booking;
   service: Service | null;
-  /** Of de dag van de kassaverrichting bij deze afspraak al definitief is
-   * afgesloten (enkel relevant voor status "done"). Zolang dat niet zo is,
-   * kan de verrichting nog vrij aangepast/verwijderd worden — pas na
-   * afsluiten wordt een reden verplicht en blijft het bewaard in het
-   * correctielogje. */
-  isDayClosed?: boolean;
   onClose: () => void;
   onCheckout: () => void;
   onCancel: () => void;
@@ -52,7 +44,6 @@ export default function BookingDetailModal({
   onRevertNoShow: () => void;
   onConfirm: () => void;
   onDelete: () => void;
-  onQuickDeleteSale?: () => void;
   onCorrect?: () => void;
 }) {
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -141,33 +132,19 @@ export default function BookingDetailModal({
           )}
           {booking.status === "done" && (
             <>
-              {!isDayClosed ? (
-                <>
-                  <button
-                    onClick={onCheckout}
-                    className="text-xs px-3 py-1.5 rounded-full border border-hairline hover:border-gold transition"
-                  >
-                    Bedrag/betaling aanpassen
-                  </button>
-                  {onQuickDeleteSale && (
-                    <button
-                      onClick={onQuickDeleteSale}
-                      className="text-xs px-3 py-1.5 rounded-full border border-hairline hover:border-red-700 hover:text-red-400 transition"
-                      title="Verkeerd geboekt? Verwijderen kan nog vrij zolang de dag niet is afgesloten."
-                    >
-                      Verwijderen
-                    </button>
-                  )}
-                </>
-              ) : (
-                onCorrect && (
-                  <button
-                    onClick={onCorrect}
-                    className="text-xs px-3 py-1.5 rounded-full border border-hairline text-cream/40 hover:border-red-700 hover:text-red-400 transition"
-                  >
-                    Kassaverrichting corrigeren
-                  </button>
-                )
+              <button
+                onClick={onCheckout}
+                className="text-xs px-3 py-1.5 rounded-full border border-hairline hover:border-gold transition"
+              >
+                Bedrag/betaling aanpassen
+              </button>
+              {onCorrect && (
+                <button
+                  onClick={onCorrect}
+                  className="text-xs px-3 py-1.5 rounded-full border border-hairline text-cream/40 hover:border-red-700 hover:text-red-400 transition"
+                >
+                  Kassaverrichting corrigeren
+                </button>
               )}
             </>
           )}

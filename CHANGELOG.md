@@ -4,43 +4,27 @@ Overzicht van alle aanpassingen, in omgekeerd-chronologische volgorde (nieuwste
 eerst). Nuttig om snel te zien wat er al gebouwd is, zonder de hele
 gespreksgeschiedenis te moeten doorzoeken.
 
-## 2026-08-21 (later op de dag)
+## 2026-08-26
 
-- **Cash-lijst kan nu ook aanpassen/verwijderen**: bij elke verrichting in
-  de dagontvangsten staat nu een knop om ze aan te passen (dezelfde "Kassa
-  aanpassen"-modal als in de Agenda) of te verwijderen/corrigeren — werkt
-  ook voor losse verkopen (Snelle verkoop) zonder gekoppelde afspraak, die
-  voorheen nergens achteraf aan te passen waren.
-- **Verwijderen vóór afsluiten logt niet meer**: zolang een dag nog niet
-  definitief is afgesloten, is een verkeerd ingegeven kassaverrichting
-  verwijderen nu een simpele bevestiging — geen reden meer nodig, en er
-  komt geen entry meer in het interne correctielogje (`db.correctionRecords`).
-  Dat logje is bewust enkel nog voor wat er ná de definitieve afsluiting
-  gecorrigeerd wordt (`POST /api/sales/[id]/void` bepaalt dit zelf aan de
-  hand van `isDayClosed()` op de datum van de verkoop) — dat was ook de
-  eigenlijke reden om dagafsluiting te vragen, niet om alles te loggen.
-  Zowel Cash als Agenda tonen daarom nu, afhankelijk van of de dag al
-  afgesloten is, een gewone "Verwijderen"-knop (geen reden) of de
-  bestaande "Corrigeren"-knop (reden verplicht, gelogd).
-
-## 2026-08-21
-
-- **Dagafsluiting bij de kassa**: kassaverrichtingen komen niet langer
-  "los" te staan — zolang een dag nog niet definitief afgesloten is, blijft
-  ze een soort "dag file": nog vrij aan te passen via de bestaande "Kassa
-  aanpassen"-flow. Bij Cash staat nu een knop "Dag definitief afsluiten"
-  (met bevestiging + overzicht van wat er verandert). Eenmaal afgesloten:
-  - kan er niet meer via "Kassa aanpassen" gewijzigd worden aan verkopen
-    van die dag, en kunnen er geen nieuwe verrichtingen meer bijkomen voor
-    die datum (`PATCH`/`POST /api/sales` geven een duidelijke foutmelding);
-  - blijft de bestaande wachtwoord-beveiligde correctieflow (agenda →
-    kassaverrichting corrigeren, met reden) wél nog mogelijk — zelfde
-    precedent als elders: geen spoorloze wijzigingen, wel een audit-trail;
-  - kan de dag, per ongeluk te vroeg afgesloten, terug geopend worden bij
-    Cash achter dezelfde extra wachtwoordcontrole als bij Correcties, met
-    verplichte reden (nooit stilzwijgend).
-  Nieuw datamodel `DayClosing` (`db.dayClosings`), nieuwe endpoints
-  `GET/POST /api/day-closings` en `POST /api/day-closings/reopen`.
+- **Kassaverrichting verplaatsen naar afspraakdag** bij Cash: als een
+  afspraak pas een andere dag afgerond wordt dan waarop ze gepland stond
+  (bv. 's anderendaags vergeten af te sluiten), stond de verrichting tot nu
+  toe altijd op de dag van afronden, niet de dag van de afspraak — soms
+  verwarrend bij het opzoeken van een specifieke klant. Elke verrichting
+  met een gekoppelde afspraak op een andere dag toont nu een discreet
+  berichtje &ldquo;Afspraak was gepland op [datum] &middot; verplaats
+  hierheen&rdquo;. Na verplaatsen blijft het originele afrondingsmoment
+  gewoon zichtbaar (&ldquo;echt afgerond op ...&rdquo;) met een
+  &ldquo;terugzetten&rdquo;-link — niets wordt dus verborgen of overschreven,
+  enkel de dag-groepering verandert. Nieuw veld `Sale.cashDate` (optioneel;
+  `createdAt` blijft ongewijzigd het echte tijdstip). Nieuw endpoint
+  `PATCH /api/sales/[id]/cash-date`. Getest via curl (verplaatsen,
+  terugzetten, validatie van ongeldige datum, onbestaande verkoop) en via
+  Playwright-screenshots van de volledige flow in de Cash-pagina.
+- **Versienummer rechtsboven in het beheerscherm** (bv. &ldquo;V0.15&rdquo;),
+  op elke pagina zichtbaar, klein en onopvallend. Centraal instelbaar via
+  `src/lib/version.ts` &mdash; simpelweg ophogen bij elke volgende
+  levering.
 
 ## 2026-08-20 (nacht)
 

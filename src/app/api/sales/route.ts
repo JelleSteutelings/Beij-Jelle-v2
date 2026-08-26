@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { readDB, mutateDB, genId } from "@/lib/db";
 import { isAuthed } from "@/lib/auth";
 import { SaleItem, SalePaymentMethod } from "@/lib/types";
-import { isDayClosed } from "@/lib/dayClosing";
-import { toBrusselsDateString } from "@/lib/tz";
 
 export async function GET(req: NextRequest) {
   if (!(await isAuthed())) {
@@ -49,14 +47,6 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await mutateDB((db) => {
-    const today = toBrusselsDateString(new Date());
-    if (isDayClosed(db, today)) {
-      return {
-        error:
-          "Vandaag is al definitief afgesloten. Heropen de dag bij Cash om nog verrichtingen toe te voegen.",
-      };
-    }
-
     const itemsTotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
     const total =
       totalOverride !== undefined && totalOverride >= 0

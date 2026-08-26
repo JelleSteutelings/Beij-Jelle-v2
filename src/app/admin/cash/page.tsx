@@ -1,31 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Booking, Customer, DayClosing, Sale } from "@/lib/types";
-import { brusselsWallTimeToDate, toBrusselsDateString } from "@/lib/tz";
-import CloseDayModal from "./CloseDayModal";
-import ReopenDayModal from "./ReopenDayModal";
-import CheckoutModal from "../agenda/CheckoutModal";
-import CorrectionReasonModal from "../agenda/CorrectionReasonModal";
-
-/** Bouwt een minimale Booking op basis van een Sale, enkel om CheckoutModal
- * te kunnen tonen vanuit de dagontvangsten-lijst (die modal verwacht een
- * "booking"-prop, maar gebruikt die bij het aanpassen van een bestaande
- * verkoop enkel voor de klantnaam in de titel — de echte opslag gebeurt via
- * PATCH /api/sales/[id] met de verkoop zelf). Werkt zowel voor verkopen
- * gekoppeld aan een afspraak als voor losse verkopen (Snelle verkoop). */
-function pseudoBookingForSale(s: Sale): Booking {
-  return {
-    id: s.bookingId || s.id,
-    serviceId: s.items.find((i) => i.type === "service")?.refId || null,
-    customerId: s.customerId || null,
-    customerName: s.customerName,
-    start: s.createdAt,
-    end: s.createdAt,
-    status: "done",
-    createdAt: s.createdAt,
-  };
-}
+import { Booking, Customer, Sale } from "@/lib/types";
+import { toBrusselsDateString } from "@/lib/tz";
 
 function formatDate(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -43,122 +20,81 @@ function formatTime(iso: string) {
   });
 }
 
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString("nl-BE", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Brussels",
+  });
+}
+
+function formatDayLabel(dateStr: string) {
+  return new Date(dateStr + "T12:00:00").toLocaleDateString("nl-BE", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
 export default function CashPage() {
   const [date, setDate] = useState(toBrusselsDateString(new Date()));
   const [sales, setSales] = useState<Sale[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [dayClosings, setDayClosings] = useState<DayClosing[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCloseModal, setShowCloseModal] = useState(false);
-  const [showReopenModal, setShowReopenModal] = useState(false);
-  const [closeError, setCloseError] = useState<string | null>(null);
-  const [editingSale, setEditingSale] = useState<Sale | null>(null);
-  const [correctingSale, setCorrectingSale] = useState<Sale | null>(null);
-
-  function loadDayClosings() {
-    return fetch("/api/day-closings").then((r) => r.json()).then(setDayClosings);
-  }
+  const [movingId, setMovingId] = useState<string | null>(null);
 
   function loadSales() {
-    return fetch("/api/sales").then((r) => r.json()).then(setSales);
+    return fetch("/api/sales")
+      .then((r) => r.json())
+      .then(setSales);
   }
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/sales").then((r) => r.json()),
-      fetch("/api/customers").then((r) => r.json()),
-      loadDayClosings(),
-    ]).then(([s, c]) => {
-      setSales(s);
-      setCustomers(c);
-      setLoading(false);
-    });
+      loadSales(),
+      fetch("/api/customers").then((r) => r.json()).then(setCustomers),
+      fetch("/api/bookings").then((r) => r.json()).then(setBookings),
+    ]).then(() => setLoading(false));
   }, []);
 
-  async function correctSale(saleId: string, reason: string) {
-    await fetch(`/api/sales/${saleId}/void`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reason }),
-    });
-    await loadSales();
-    setCorrectingSale(null);
-  }
+  const bookingsById = useMemo(() => {
+    const map = new Map<string, Booking>();
+    for (const b of bookings) map.set(b.id, b);
+    return map;
+  }, [bookings]);
 
-  // Zolang de dag nog niet definitief afgesloten is, is dit gewoon een
-  // fout ingegeven verrichting rechtzetten: geen reden nodig, geen
-  // correctielogje (dat is enkel voor wat er ná afsluiten nog verandert).
-  async function deleteDraftSale(s: Sale) {
-    if (
-      !confirm(
-        `Verkoop van ${customerName(s)} (€${s.total.toFixed(2)}) verwijderen?`
-      )
-    ) {
-      return;
-    }
-    await fetch(`/api/sales/${s.id}/void`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    });
-    await loadSales();
-  }
+  // De dag waarop een verrichting toont: de handmatige overschrijving
+  // (cashDate) indien gezet, anders gewoon de dag waarop de kassa echt
+  // afgerond werd (createdAt, in Brussel-tijd).
+  const effectiveDay = (s: Sale) => s.cashDate || toBrusselsDateString(new Date(s.createdAt));
 
-  const today = toBrusselsDateString(new Date());
-  const closingForDate = useMemo(() => {
-    const records = dayClosings.filter((c) => c.date === date);
-    if (records.length === 0) return null;
-    return records.reduce((a, b) => (a.closedAt > b.closedAt ? a : b));
-  }, [dayClosings, date]);
-  const isDayClosed = !!closingForDate && !closingForDate.reopenedAt;
-
-  async function closeDay() {
-    setCloseError(null);
-    const res = await fetch("/api/day-closings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date }),
-    });
-    if (res.ok) {
-      await loadDayClosings();
-      setShowCloseModal(false);
-    } else {
-      const data = await res.json().catch(() => ({}));
-      setCloseError(data.error || "Afsluiten is mislukt. Probeer opnieuw.");
-      setShowCloseModal(false);
-    }
-  }
-
-  async function reopenDay(password: string, reason: string): Promise<string | null> {
-    const res = await fetch("/api/day-closings/reopen", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date, password, reason }),
-    });
-    if (res.ok) {
-      await loadDayClosings();
-      setShowReopenModal(false);
-      return null;
-    }
-    const data = await res.json().catch(() => ({}));
-    return data.error || "Heropenen is mislukt. Probeer opnieuw.";
-  }
-
-  const dayStart = useMemo(() => brusselsWallTimeToDate(date, "00:00"), [date]);
-  const dayEnd = useMemo(() => {
-    const d = new Date(date + "T12:00:00");
-    d.setDate(d.getDate() + 1);
-    return brusselsWallTimeToDate(d.toISOString().slice(0, 10), "00:00");
-  }, [date]);
+  // De dag van de gekoppelde afspraak, indien die nog bestaat — null als er
+  // geen (meer) een gekoppelde afspraak is (bv. losse verkoop).
+  const appointmentDay = (s: Sale) => {
+    if (!s.bookingId) return null;
+    const b = bookingsById.get(s.bookingId);
+    return b ? toBrusselsDateString(new Date(b.start)) : null;
+  };
 
   const daySales = useMemo(() => {
     return sales
-      .filter((s) => {
-        const t = new Date(s.createdAt).getTime();
-        return t >= dayStart.getTime() && t < dayEnd.getTime();
-      })
+      .filter((s) => effectiveDay(s) === date)
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }, [sales, dayStart, dayEnd]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sales, date, bookingsById]);
+
+  async function moveToDay(sale: Sale, targetDay: string | null) {
+    setMovingId(sale.id);
+    await fetch(`/api/sales/${sale.id}/cash-date`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cashDate: targetDay }),
+    });
+    await loadSales();
+    setMovingId(null);
+  }
 
   const cashTotal = daySales
     .filter((s) => s.paymentMethod === "cash")
@@ -244,39 +180,6 @@ export default function CashPage() {
             </div>
           </div>
 
-          {closeError && <p className="text-red-400 text-xs mb-4">{closeError}</p>}
-
-          <div className="mb-8">
-            {isDayClosed ? (
-              <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-emerald-800/40 bg-emerald-950/20">
-                <p className="text-xs text-emerald-300">
-                  Definitief afgesloten op{" "}
-                  {new Date(closingForDate!.closedAt).toLocaleString("nl-BE", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    timeZone: "Europe/Brussels",
-                  })}
-                </p>
-                <button
-                  onClick={() => setShowReopenModal(true)}
-                  className="text-xs text-cream/40 hover:text-gold shrink-0"
-                >
-                  Heropenen
-                </button>
-              </div>
-            ) : date <= today ? (
-              <button
-                onClick={() => setShowCloseModal(true)}
-                className="text-xs px-4 py-2 rounded-full border border-hairline hover:border-gold transition"
-              >
-                Dag definitief afsluiten
-              </button>
-            ) : null}
-          </div>
-
           <h2 className="text-xs text-gold/80 uppercase tracking-wide mb-2">
             Verrichtingen ({daySales.length})
           </h2>
@@ -284,98 +187,74 @@ export default function CashPage() {
             <p className="text-cream/40 text-sm">Geen kassaverrichtingen op deze dag.</p>
           ) : (
             <ul className="space-y-2">
-              {daySales.map((s) => (
-                <li
-                  key={s.id}
-                  className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-hairline bg-panel/30"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm text-cream/80">
-                      {formatTime(s.createdAt)} &middot; {customerName(s)}
-                    </p>
-                    <p className="text-xs text-cream/40 truncate">
-                      {s.items.map((i) => `${i.qty}x ${i.name}`).join(", ")}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1">
-                      {!isDayClosed ? (
-                        <>
-                          <button
-                            onClick={() => setEditingSale(s)}
-                            className="text-[11px] text-gold/70 hover:text-gold underline underline-offset-2"
-                          >
-                            Aanpassen
-                          </button>
-                          <button
-                            onClick={() => deleteDraftSale(s)}
-                            className="text-[11px] text-cream/30 hover:text-red-400 underline underline-offset-2"
-                          >
-                            Verwijderen
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          onClick={() => setCorrectingSale(s)}
-                          className="text-[11px] text-cream/30 hover:text-red-400 underline underline-offset-2"
-                        >
-                          Corrigeren
-                        </button>
-                      )}
+              {daySales.map((s) => {
+                const apptDay = appointmentDay(s);
+                const isMoved = !!s.cashDate;
+                // Enkel een verplaats-suggestie tonen als er een gekoppelde
+                // afspraak is met een écht andere dag dan waar deze
+                // verrichting nu staat.
+                const suggestMove = !isMoved && apptDay && apptDay !== date;
+
+                return (
+                  <li
+                    key={s.id}
+                    className="px-4 py-3 rounded-xl border border-hairline bg-panel/30"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm text-cream/80">
+                          {isMoved ? customerName(s) : `${formatTime(s.createdAt)} · ${customerName(s)}`}
+                        </p>
+                        <p className="text-xs text-cream/40 truncate">
+                          {s.items.map((i) => `${i.qty}x ${i.name}`).join(", ")}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-display text-gold-light">{eur(s.total)}</p>
+                        <p className="text-[11px] text-cream/40">
+                          {s.paymentMethod === "cash"
+                            ? "Cash"
+                            : s.paymentMethod === "qr"
+                            ? "QR"
+                            : "Cadeaubon"}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-display text-gold-light">{eur(s.total)}</p>
-                    <p className="text-[11px] text-cream/40">
-                      {s.paymentMethod === "cash"
-                        ? "Cash"
-                        : s.paymentMethod === "qr"
-                        ? "QR"
-                        : "Cadeaubon"}
-                    </p>
-                  </div>
-                </li>
-              ))}
+
+                    {isMoved && (
+                      <div className="mt-2 pt-2 border-t border-hairline/60 flex items-center justify-between gap-2 text-[11px] text-cream/40">
+                        <span>
+                          Verplaatst naar afspraakdag &mdash; echt afgerond op{" "}
+                          {formatDateTime(s.createdAt)}
+                        </span>
+                        <button
+                          onClick={() => moveToDay(s, null)}
+                          disabled={movingId === s.id}
+                          className="text-gold/70 hover:text-gold underline underline-offset-2 shrink-0 disabled:opacity-40"
+                        >
+                          terugzetten
+                        </button>
+                      </div>
+                    )}
+
+                    {suggestMove && (
+                      <div className="mt-2 pt-2 border-t border-hairline/60 flex items-center justify-between gap-2 text-[11px] text-amber-300/90">
+                        <span>Afspraak was gepland op {formatDayLabel(apptDay!)}</span>
+                        <button
+                          onClick={() => moveToDay(s, apptDay)}
+                          disabled={movingId === s.id}
+                          className="text-gold hover:text-gold-light underline underline-offset-2 shrink-0 disabled:opacity-40"
+                        >
+                          {movingId === s.id ? "bezig..." : "verplaats hierheen"}
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </>
-      )}
-
-      {showCloseModal && (
-        <CloseDayModal
-          dateLabel={dateLabel}
-          salesCount={daySales.length}
-          total={grandTotal}
-          onClose={() => setShowCloseModal(false)}
-          onConfirm={closeDay}
-        />
-      )}
-      {showReopenModal && (
-        <ReopenDayModal
-          dateLabel={dateLabel}
-          onClose={() => setShowReopenModal(false)}
-          onConfirm={reopenDay}
-        />
-      )}
-
-      {editingSale && (
-        <CheckoutModal
-          booking={pseudoBookingForSale(editingSale)}
-          service={null}
-          existingSale={editingSale}
-          onClose={() => setEditingSale(null)}
-          onDone={() => {
-            setEditingSale(null);
-            loadSales();
-          }}
-        />
-      )}
-
-      {correctingSale && (
-        <CorrectionReasonModal
-          customerName={customerName(correctingSale)}
-          total={correctingSale.total}
-          onClose={() => setCorrectingSale(null)}
-          onConfirm={(reason) => correctSale(correctingSale.id, reason)}
-        />
       )}
     </div>
   );
