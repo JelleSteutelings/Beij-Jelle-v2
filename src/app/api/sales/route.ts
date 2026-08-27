@@ -58,10 +58,15 @@ export async function POST(req: NextRequest) {
     }
 
     const itemsTotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
+    // Voorgesteld bedrag: som van de items, met studentenkorting eraf indien
+    // aangevinkt. Een expliciet meegegeven totalOverride (handmatig ingevuld
+    // in de kassa) blijft altijd het laatste woord.
+    const discountPercent = studentDiscount ? db.settings.studentDiscountPercent || 0 : 0;
+    const suggestedTotal = Math.round(itemsTotal * (1 - discountPercent / 100) * 100) / 100;
     const total =
       totalOverride !== undefined && totalOverride >= 0
         ? Math.round(totalOverride * 100) / 100
-        : itemsTotal;
+        : suggestedTotal;
 
     let voucherAmount = 0;
     let voucher = null;

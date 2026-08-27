@@ -47,6 +47,7 @@ export default function CheckoutModal({
     existingSale?.studentDiscount || false
   );
   const [studentDiscountPercent, setStudentDiscountPercent] = useState(10);
+  const [productSearch, setProductSearch] = useState("");
 
   useEffect(() => {
     fetch("/api/products")
@@ -89,6 +90,12 @@ export default function CheckoutModal({
     });
   }
 
+  const filteredProducts = productSearch.trim()
+    ? products.filter((p) =>
+        p.name.toLowerCase().includes(productSearch.trim().toLowerCase())
+      )
+    : products;
+
   function removeItem(index: number) {
     setItems((prev) => prev.filter((_, i) => i !== index));
   }
@@ -102,8 +109,14 @@ export default function CheckoutModal({
   }
 
   const itemsTotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
-  const total = totalOverride !== "" ? Number(totalOverride) || 0 : itemsTotal;
-  const isOverridden = totalOverride !== "" && Number(totalOverride) !== itemsTotal;
+  // Voorgesteld bedrag: som van de items, met studentenkorting eraf indien
+  // aangevinkt. Een handmatig ingevuld totaal (totalOverride) blijft altijd
+  // het laatste woord — de korting past enkel het voorstel aan.
+  const suggestedTotal = studentDiscount
+    ? Math.round(itemsTotal * (1 - studentDiscountPercent / 100) * 100) / 100
+    : itemsTotal;
+  const total = totalOverride !== "" ? Number(totalOverride) || 0 : suggestedTotal;
+  const isOverridden = totalOverride !== "" && Number(totalOverride) !== suggestedTotal;
   const selectedVoucher = vouchers.find((v) => v.id === selectedVoucherId) || null;
   const voucherCapForEditing =
     isEditing && selectedVoucher && selectedVoucher.id === existingSale?.giftVoucherId
@@ -214,8 +227,15 @@ export default function CheckoutModal({
           <summary className="text-xs text-gold/80 hover:text-gold cursor-pointer select-none">
             + Product uit voorraad toevoegen
           </summary>
+          <input
+            type="text"
+            value={productSearch}
+            onChange={(e) => setProductSearch(e.target.value)}
+            placeholder="Zoek product..."
+            className="mt-2 w-full bg-deep border border-hairline rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-gold"
+          />
           <div className="mt-2 grid gap-1.5 max-h-36 overflow-y-auto">
-            {products.map((p) => (
+            {filteredProducts.map((p) => (
               <button
                 key={p.id}
                 onClick={() => addProduct(p)}
@@ -225,6 +245,9 @@ export default function CheckoutModal({
                 <span className="text-cream/40">{p.stock} {p.unit}</span>
               </button>
             ))}
+            {filteredProducts.length === 0 && (
+              <p className="text-xs text-cream/30 px-1 py-1">Geen producten gevonden.</p>
+            )}
           </div>
         </details>
 
@@ -325,7 +348,7 @@ export default function CheckoutModal({
                 type="number"
                 min={0}
                 step="0.01"
-                value={totalOverride !== "" ? totalOverride : itemsTotal.toFixed(2)}
+                value={totalOverride !== "" ? totalOverride : suggestedTotal.toFixed(2)}
                 onChange={(e) => setTotalOverride(e.target.value)}
                 className="w-24 bg-deep border border-hairline rounded-lg px-2 py-1.5 text-right font-display text-xl text-gold-light focus:outline-none focus:border-gold"
               />
@@ -333,7 +356,7 @@ export default function CheckoutModal({
           </div>
           {isOverridden && (
             <div className="flex justify-between text-[11px] text-cream/40">
-              <span>Voorgesteld bedrag was &euro;{itemsTotal.toFixed(2)}</span>
+              <span>Voorgesteld bedrag was &euro;{suggestedTotal.toFixed(2)}</span>
               <button
                 onClick={() => setTotalOverride("")}
                 className="text-gold/70 hover:text-gold underline underline-offset-2"

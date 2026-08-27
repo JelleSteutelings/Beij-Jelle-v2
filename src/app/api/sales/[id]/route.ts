@@ -44,10 +44,18 @@ export async function PATCH(
     }
 
     const itemsTotal = (items || sale.items).reduce((sum, i) => sum + i.price * i.qty, 0);
+    // Zelfde logica als bij het aanmaken (POST /api/sales): studentenkorting
+    // verlaagt het voorgestelde bedrag, een expliciete totalOverride wint.
+    const effectiveStudentDiscount =
+      studentDiscount !== undefined ? studentDiscount : !!sale.studentDiscount;
+    const discountPercent = effectiveStudentDiscount
+      ? db.settings.studentDiscountPercent || 0
+      : 0;
+    const suggestedTotal = Math.round(itemsTotal * (1 - discountPercent / 100) * 100) / 100;
     const total =
       totalOverride !== undefined && totalOverride >= 0
         ? Math.round(totalOverride * 100) / 100
-        : itemsTotal;
+        : suggestedTotal;
 
     let newVoucherAmount = 0;
     let newVoucher = null;

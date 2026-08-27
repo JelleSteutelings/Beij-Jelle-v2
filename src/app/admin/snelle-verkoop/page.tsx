@@ -19,6 +19,7 @@ export default function SnelleVerkoopPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
 
   useEffect(() => {
     fetch("/api/products").then((r) => r.json()).then(setProducts);
@@ -42,6 +43,12 @@ export default function SnelleVerkoopPage() {
       ];
     });
   }
+
+  const filteredProducts = productSearch.trim()
+    ? products.filter((p) =>
+        p.name.toLowerCase().includes(productSearch.trim().toLowerCase())
+      )
+    : products;
 
   function removeItem(index: number) {
     setItems((prev) => prev.filter((_, i) => i !== index));
@@ -196,8 +203,15 @@ export default function SnelleVerkoopPage() {
 
       <div className="mb-4">
         <p className="text-xs text-gold/80 mb-2">Product uit voorraad</p>
+        <input
+          type="text"
+          value={productSearch}
+          onChange={(e) => setProductSearch(e.target.value)}
+          placeholder="Zoek product..."
+          className="w-full mb-2 bg-deep border border-hairline rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-gold"
+        />
         <div className="grid gap-1.5 max-h-56 overflow-y-auto">
-          {products.map((p) => (
+          {filteredProducts.map((p) => (
             <button
               key={p.id}
               onClick={() => addProduct(p)}
@@ -207,6 +221,9 @@ export default function SnelleVerkoopPage() {
               <span className="text-cream/40">{p.stock} {p.unit}</span>
             </button>
           ))}
+          {filteredProducts.length === 0 && (
+            <p className="text-xs text-cream/30 px-1 py-1">Geen producten gevonden.</p>
+          )}
         </div>
       </div>
 

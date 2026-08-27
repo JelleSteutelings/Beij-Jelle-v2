@@ -4,6 +4,22 @@ Overzicht van alle aanpassingen, in omgekeerd-chronologische volgorde (nieuwste
 eerst). Nuttig om snel te zien wat er al gebouwd is, zonder de hele
 gespreksgeschiedenis te moeten doorzoeken.
 
+## 2026-08-27 (later op de dag)
+
+- **Product zoeken in de kassa en Snelle verkoop**: een zoekbalkje boven de
+  productenlijst filtert live op naam, zodat een lange productenlijst niet
+  meer helemaal doorgescrold hoeft te worden. Zowel bij Kassa
+  (`CheckoutModal.tsx`) als bij Snelle verkoop.
+- **Bugfix: studentenkorting werd niet verrekend in het eindtotaal.** Het
+  vinkje "Studentenkorting toegepast" bij de kassa sloeg enkel een `true`/
+  `false`-vlag op (enkel gebruikt voor rapportage), maar trok het
+  percentage nooit af van het bedrag. Nu verlaagt het percentage
+  (Instellingen → Studentenkorting) het voorgestelde totaal, zowel in de
+  kassa zelf (live zichtbaar zodra je het vinkje aanzet) als op de server
+  (`POST /api/sales`, `PATCH /api/sales/[id]`) als extra zekerheid. Een
+  handmatig ingetypt totaal blijft, zoals voorheen, altijd het laatste
+  woord — de korting past enkel het voorstel aan.
+
 ## 2026-08-27
 
 - **Kassaverrichting verplaatsen naar afspraakdag** bij Cash: als een
