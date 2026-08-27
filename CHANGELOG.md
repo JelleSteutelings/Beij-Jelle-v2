@@ -4,6 +4,51 @@ Overzicht van alle aanpassingen, in omgekeerd-chronologische volgorde (nieuwste
 eerst). Nuttig om snel te zien wat er al gebouwd is, zonder de hele
 gespreksgeschiedenis te moeten doorzoeken.
 
+## 2026-08-27 (nacht)
+
+- **Tijd blokkeren: eindtijd rechtstreeks kiezen i.p.v. duur in minuten.**
+  In de modal "Tijd blokkeren / afspraak toevoegen" kon voorheen enkel de
+  starttijd gekozen worden, waarna een duur in minuten werd ingegeven om de
+  eindtijd te bepalen. Bij "Tijd blokkeren" kan nu net zoals bij de
+  starttijd een eindtijd rechtstreeks gekozen worden via een tijdveld
+  ("Eindtijd"), met een hulptekst eronder die de resulterende duur toont.
+  Bij "Afspraak toevoegen" blijft alles ongewijzigd: dat werkt nog steeds
+  via een duur in minuten (die normaal automatisch de gekozen dienst
+  volgt), zoals expliciet gevraagd. Er is validatie toegevoegd: de eindtijd
+  moet na de starttijd liggen, anders verschijnt een foutmelding. Getest
+  via Playwright: in blokkeer-modus toont het veld "Eindtijd" (niet "Duur
+  (min)"), de duur-hulptekst rekent correct (10:00–11:15 → "75 min"), de
+  validatiefout verschijnt bij een eindtijd vóór de starttijd, en een
+  aangemaakte blokkering geeft het juiste start-/eindtijdstip terug via de
+  API. In afspraak-modus toont het veld nog steeds "Duur (min)", niet
+  gewijzigd.
+
+## 2026-08-27 (avond)
+
+- **Bugfix: laatste dag van een vakantieperiode werd niet geblokkeerd.**
+  "Vakantie inplannen" maakt intern per dag een aparte geblokkeerde afspraak
+  aan (00:00 tot 00:00 de volgende dag, Brusselse tijd) — dat klopte altijd
+  al. Het probleem zat in de Agenda-weergaven (Dag/Week/Maand): die
+  bepaalden op welke kalenderdag een afspraak hoort via de ruwe UTC-datum
+  uit het ISO-tijdstip (`booking.start.slice(0, 10)`). Brussel loopt altijd
+  voor op UTC (+1 of +2 uur), dus een afspraak die om Brusselse middernacht
+  start heeft een UTC-tijdstip dat nog op de vorige kalenderdag valt. Effect:
+  elke vakantiedag verscheen in de agenda een dag te vroeg — de eerste dag
+  van de vakantie leek niet geblokkeerd (zijn eigen blok stond onzichtbaar
+  vóór de startdatum), en de laatste dag ("tot en met") leek net vrij, want
+  er was geen dag erna om zijn blok "naar toe te lekken". De onderliggende
+  gegevens klopten dus gewoon, alleen de weergave loog. Opgelost door overal
+  de Brusselse kalenderdag te gebruiken (`toBrusselsDateString`, zoals de
+  rest van de app al hoort te doen) in plaats van de ruwe UTC-datum: Agenda
+  dag-lijst, WeekView, en MonthView (inclusief een tweede, verwante bug
+  daar: de datums van de maandkalender zelf — en dus ook welke dag je
+  binnenkomt als je op een vakje klikt — waren op dezelfde manier een dag
+  verschoven). Ook de "Vandaag"-knop en de begindatum van de Agenda bij het
+  openen gebruikten dezelfde foutieve methode; ook aangepast. Geverifieerd
+  met een browsertest (Playwright) in de Brusselse tijdzone: een vakantie
+  van 1 t/m 3 september toont nu correct precies die drie dagen als
+  geblokkeerd, in alle drie weergaves, met correcte klik-navigatie.
+
 ## 2026-08-27 (later op de dag)
 
 - **Product zoeken in de kassa en Snelle verkoop**: een zoekbalkje boven de

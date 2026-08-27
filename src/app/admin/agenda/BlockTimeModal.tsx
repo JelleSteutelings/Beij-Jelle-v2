@@ -4,6 +4,18 @@ import { useEffect, useRef, useState } from "react";
 import { Customer, Service } from "@/lib/types";
 import { formatBelgianPhone } from "@/lib/phone";
 
+function timeToMinutes(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function addMinutesToTime(t: string, minutes: number): string {
+  const total = Math.max(0, timeToMinutes(t) + minutes) % (24 * 60);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 export default function BlockTimeModal({
   date,
   initialTime,
@@ -22,6 +34,10 @@ export default function BlockTimeModal({
   const [serviceId, setServiceId] = useState("");
   const [start, setStart] = useState(initialTime || "09:00");
   const [duration, setDuration] = useState(30);
+  // Enkel gebruikt bij "Tijd blokkeren": eindtijd rechtstreeks kiezen
+  // (zoals de starttijd), i.p.v. via een duur in minuten. "Afspraak
+  // toevoegen" blijft werken via duur (die volgt normaal de dienst).
+  const [endTime, setEndTime] = useState(addMinutesToTime(initialTime || "09:00", 30));
 
   // Klant koppelen: zoeken in bestaande klanten (op naam) of een nieuwe
   // aanmaken. customerQuery blijft ook bruikbaar als vrije-tekst-naam
@@ -86,10 +102,17 @@ export default function BlockTimeModal({
 
   async function handleSubmit() {
     setError(null);
+
+    if (mode === "block" && timeToMinutes(endTime) <= timeToMinutes(start)) {
+      setError("Eindtijd moet na de starttijd liggen.");
+      return;
+    }
+
     const startIso = new Date(`${date}T${start}:00`).toISOString();
-    const endIso = new Date(
-      new Date(startIso).getTime() + duration * 60000
-    ).toISOString();
+    const endIso =
+      mode === "block"
+        ? new Date(`${date}T${endTime}:00`).toISOString()
+        : new Date(new Date(startIso).getTime() + duration * 60000).toISOString();
 
     if (mode === "appointment" && !serviceId) {
       setError("Kies een dienst.");
@@ -195,19 +218,36 @@ export default function BlockTimeModal({
                 className="w-full bg-deep border border-hairline rounded-lg px-3 py-2 focus:outline-none focus:border-gold [color-scheme:dark]"
               />
             </div>
-            <div>
-              <label className="block text-xs text-cream/50 mb-1.5">
-                Duur (min)
-              </label>
-              <input
-                type="number"
-                min={5}
-                step={5}
-                value={duration}
-                onChange={(e) => setDuration(Number(e.target.value))}
-                className="w-full bg-deep border border-hairline rounded-lg px-3 py-2 focus:outline-none focus:border-gold"
-              />
-            </div>
+            {mode === "block" ? (
+              <div>
+                <label className="block text-xs text-cream/50 mb-1.5">
+                  Eindtijd
+                </label>
+                <input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className="w-full bg-deep border border-hairline rounded-lg px-3 py-2 focus:outline-none focus:border-gold [color-scheme:dark]"
+                />
+                <p className="text-[11px] text-cream/40 mt-1">
+                  {Math.max(0, timeToMinutes(endTime) - timeToMinutes(start))} min
+                </p>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs text-cream/50 mb-1.5">
+                  Duur (min)
+                </label>
+                <input
+                  type="number"
+                  min={5}
+                  step={5}
+                  value={duration}
+                  onChange={(e) => setDuration(Number(e.target.value))}
+                  className="w-full bg-deep border border-hairline rounded-lg px-3 py-2 focus:outline-none focus:border-gold"
+                />
+              </div>
+            )}
           </div>
 
           {mode === "appointment" && (

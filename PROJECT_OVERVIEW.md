@@ -84,6 +84,20 @@ src/
 - **Tijdzone**: de server kan op UTC draaien (Railway) terwijl de salon in
   Brussel zit. Gebruik ALTIJD `tz.ts`-helpers, nooit rechtstreeks
   `new Date().getHours()` voor iets dat aan de klant getoond wordt.
+  **Concreet precedent (bug geweest, opgelost 2026-08-27)**: nooit
+  `booking.start.slice(0, 10)` (ruwe UTC-datum) gebruiken om te bepalen bij
+  welke kalenderdag een boeking hoort — gebruik `toBrusselsDateString(new
+  Date(booking.start))`. Brussel loopt altijd voor op UTC, dus een boeking
+  die om Brusselse middernacht start (bv. een volledige vakantiedag) heeft
+  een UTC-tijdstip dat nog op de vorige dag valt. Trof eerder de Agenda
+  dag-lijst, WeekView en MonthView (`src/app/admin/agenda/`) — vakantiedagen
+  leken een dag te vroeg geblokkeerd, met als zichtbaar effect dat de
+  laatste ("tot en met") dag van een vakantieperiode leek vrij te zijn.
+  Zelfde aandachtspunt bij Date-objecten die op kalenderdag-grenzen gebouwd
+  worden: gebruik `T12:00:00` (middag) als anker, nooit een naakte
+  `new Date(year, month, day)` (= middernacht lokaal) die je dan via
+  `toISOString()` omzet — dat kantelt over de dag heen. Zie `mondayOf()` in
+  `WeekView.tsx` voor het juiste patroon.
 - **Kleur per dienst**: `Service.color` (hex), gebruikt in `WeekView.tsx`;
   zonder ingestelde kleur valt het terug op `bookingColor(id)`.
 - **Correcties op afgeronde kassaverrichtingen**: `db.correctionRecords`

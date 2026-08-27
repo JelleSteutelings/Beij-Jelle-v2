@@ -2,6 +2,7 @@
 
 import { Booking, BookingBlock, Service } from "@/lib/types";
 import { bookingColor } from "@/lib/bookingColor";
+import { toBrusselsDateString } from "@/lib/tz";
 
 const GRID_START_MIN = 7 * 60; // 07:00
 const GRID_END_MIN = 21 * 60; // 21:00
@@ -80,7 +81,7 @@ export default function WeekView({
 
   const totalRows = (GRID_END_MIN - GRID_START_MIN) / ROW_MIN;
   const gridHeight = totalRows * ROW_HEIGHT;
-  const todayStr = toDateStr(new Date());
+  const todayStr = toBrusselsDateString(new Date());
 
   const serviceById = (id: string | null) => services.find((s) => s.id === id) || null;
 
@@ -149,8 +150,12 @@ export default function WeekView({
 
           {weekDays.map((d) => {
             const dStr = toDateStr(d);
+            // Brusselse kalenderdag, niet de ruwe UTC-datum uit het
+            // ISO-tijdstip (zie ook AgendaPage.dayBookings) — anders
+            // verschijnt bv. een vakantiedag die om Brusselse middernacht
+            // start hier onder de verkeerde (vorige) dag.
             const dayBookings = bookings.filter(
-              (b) => b.start.slice(0, 10) === dStr && b.status !== "cancelled"
+              (b) => toBrusselsDateString(new Date(b.start)) === dStr && b.status !== "cancelled"
             );
             return (
               <div

@@ -1,9 +1,16 @@
 "use client";
 
 import { Booking } from "@/lib/types";
+import { toBrusselsDateString } from "@/lib/tz";
 
 const DAY_LABELS = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"];
 
+// Middernacht-lokaal (new Date(year, month, day)) ligt vlak bij een
+// UTC-dagwissel: in Brussel loopt de klok altijd voor op UTC, dus
+// toISOString().slice(0, 10) op zo'n datum geeft de vorige kalenderdag
+// terug. Alle interne Date-objecten hier daarom op de middag ankeren
+// (T12:00:00) — ver genoeg van middernacht om nooit over de dag te
+// kunnen kantelen — net zoals in WeekView/AgendaPage.
 function toDateStr(d: Date) {
   return d.toISOString().slice(0, 10);
 }
@@ -21,7 +28,8 @@ export default function MonthView({
   const year = current.getFullYear();
   const month = current.getMonth();
 
-  const firstOfMonth = new Date(year, month, 1);
+  const firstOfMonthStr = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+  const firstOfMonth = new Date(firstOfMonthStr + "T12:00:00");
   const startOffset = firstOfMonth.getDay() === 0 ? 6 : firstOfMonth.getDay() - 1;
   const gridStart = new Date(firstOfMonth);
   gridStart.setDate(gridStart.getDate() - startOffset);
@@ -32,11 +40,14 @@ export default function MonthView({
     return d;
   });
 
-  const todayStr = toDateStr(new Date());
+  const todayStr = toBrusselsDateString(new Date());
 
+  // Brusselse kalenderdag van de boeking, niet de ruwe UTC-datum uit het
+  // ISO-tijdstip — anders verschijnt bv. een vakantiedag die om Brusselse
+  // middernacht start onder de verkeerde (vorige) dag.
   function bookingsFor(dStr: string) {
     return bookings.filter(
-      (b) => b.start.slice(0, 10) === dStr && b.status !== "cancelled"
+      (b) => toBrusselsDateString(new Date(b.start)) === dStr && b.status !== "cancelled"
     );
   }
 

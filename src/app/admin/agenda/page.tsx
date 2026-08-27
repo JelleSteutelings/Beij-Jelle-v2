@@ -44,7 +44,11 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 export default function AgendaPage() {
-  const [date, setDate] = useState(formatDate(new Date()));
+  // toBrusselsDateString (niet formatDate/toISOString) voor de "vandaag"
+  // starttoestand: rond middernacht loopt Brussel voor op UTC, dus een
+  // ruwe toISOString().slice(0, 10) zou tot ~2u 's nachts nog "gisteren"
+  // tonen.
+  const [date, setDate] = useState(toBrusselsDateString(new Date()));
   const [view, setView] = useState<"day" | "week" | "month">("day");
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -124,8 +128,14 @@ export default function AgendaPage() {
     load();
   }, [load]);
 
+  // Belangrijk: vergelijk via de Brusselse kalenderdag, niet de ruwe
+  // UTC-datum uit het ISO-tijdstip. Brussel loopt altijd voor op UTC
+  // (+1 of +2 uur), dus een boeking die om Brusselse middernacht start
+  // (bv. een volledige vakantiedag) heeft een UTC-tijdstip dat nog op de
+  // vorige kalenderdag valt — met b.start.slice(0, 10) zou zo'n dag hier
+  // dan ten onrechte niet (of op de verkeerde dag) verschijnen.
   const dayBookings = bookings
-    .filter((b) => b.start.slice(0, 10) === date)
+    .filter((b) => toBrusselsDateString(new Date(b.start)) === date)
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
   const serviceById = (id: string | null) =>
@@ -259,7 +269,7 @@ export default function AgendaPage() {
           &rarr;
         </button>
         <button
-          onClick={() => setDate(formatDate(new Date()))}
+          onClick={() => setDate(toBrusselsDateString(new Date()))}
           className="text-xs text-gold/80 hover:text-gold ml-1"
         >
           Vandaag
