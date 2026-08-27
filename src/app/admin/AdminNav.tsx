@@ -14,6 +14,7 @@ const LINKS = [
   { href: "/admin/cash", label: "Cash" },
   { href: "/admin/dashboards", label: "Dashboards" },
   { href: "/admin/instellingen", label: "Instellingen" },
+  { href: "/admin/livegang", label: "Livegang" },
 ];
 
 export default function AdminNav() {

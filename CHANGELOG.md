@@ -4,6 +4,41 @@ Overzicht van alle aanpassingen, in omgekeerd-chronologische volgorde (nieuwste
 eerst). Nuttig om snel te zien wat er al gebouwd is, zonder de hele
 gespreksgeschiedenis te moeten doorzoeken.
 
+## 2026-08-28 (vroege ochtend)
+
+- **Livegang: bevestiging vereenvoudigd naar een echte ja/nee-vraag.** De
+  typ-"VERWIJDER"-bevestiging bij het wissen op het tabblad "Livegang" is
+  vervangen door een duidelijke vraag: "Ben je zeker dat je dit wilt
+  wissen?" met daaronder "Nee, annuleren" / "Ja, verwijderen". Het
+  wachtwoord blijft daarnaast verplicht, net zoals gevraagd — de knop "Ja,
+  verwijderen" blijft uitgeschakeld tot het wachtwoord ingevuld is.
+  Achterliggend blijft dezelfde beveiliging bestaan (wachtwoordcontrole op
+  de server, whitelist van welke lijsten wisbaar zijn), enkel de manier
+  van bevestigen aan de voorkant is eenvoudiger geworden.
+
+## 2026-08-27 (heel laat in de nacht)
+
+- **Nieuw tabblad "Livegang" — gericht test-gegevens wissen vóór livegang.**
+  Een nieuw onderdeel in het beheerscherm (`/admin/livegang`) waar je zelf
+  per lijst kiest wat er gewist wordt: afspraken & blokkeringen,
+  annulatie- en no-show-geschiedenis (Agenda), kassaverkopen,
+  dagafsluitingen en de correctielog (Financieel), en los daarvan
+  cadeaubonnen, inkooporders en voorraadgeschiedenis (waarbij de huidige
+  voorraadaantallen zelf altijd blijven staan, ook al wis je de
+  geschiedenis ervan). Een knop selecteert in één klik de aanbevolen
+  combinatie "Agenda + financieel". Diensten &amp; prijzen, producten &amp;
+  voorraadaantallen, klanten en instellingen staan hier bewust niet
+  tussen — die kunnen via dit scherm nooit gewist worden, ook niet per
+  ongeluk. Zit achter dezelfde extra wachtwoordcontrole als Correcties, en
+  vereist bovendien dat je letterlijk "VERWIJDER" intypt vóór de knop
+  actief wordt, net omdat dit niet ongedaan te maken is. Na het wissen
+  toont het scherm een overzicht van wat er precies verwijderd is (met
+  aantallen). Getest: wachtwoordcontrole, de VERWIJDER-bevestiging, en dat
+  een verzoek met een niet-toegelaten lijst (bv. "services") door de
+  server geweigerd wordt ongeacht wat de pagina zelf verstuurt. Bevestigd
+  dat na het wissen van enkel "bookings" de diensten- en productenlijst
+  onaangeroerd bleven.
+
 ## 2026-08-27 (laat in de nacht)
 
 - **"Vanaf" voor het bedrag in de prijslijst.** Op de publieke website, bij
