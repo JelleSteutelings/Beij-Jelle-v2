@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { mutateDB } from "@/lib/db";
 import { isAuthed } from "@/lib/auth";
 import { SaleItem, SalePaymentMethod } from "@/lib/types";
+import { isDayClosed } from "@/lib/dayClosing";
+import { toBrusselsDateString } from "@/lib/tz";
 
 export async function PATCH(
   req: NextRequest,
@@ -23,6 +25,14 @@ export async function PATCH(
   const result = await mutateDB((db) => {
     const sale = db.sales.find((s) => s.id === params.id);
     if (!sale) return { error: "Verkoop niet gevonden" };
+
+    const saleDate = toBrusselsDateString(new Date(sale.createdAt));
+    if (isDayClosed(db, saleDate)) {
+      return {
+        error:
+          "Deze dag is al definitief afgesloten en kan niet meer op deze manier aangepast worden. Gebruik indien nodig de correctie-optie, of heropen de dag bij Cash.",
+      };
+    }
 
     // Eerst de vorige cadeaubon-afboeking terugdraaien, indien van toepassing.
     if (sale.giftVoucherId && sale.giftVoucherAmountUsed) {

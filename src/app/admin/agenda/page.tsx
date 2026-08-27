@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Booking, Sale, Service } from "@/lib/types";
+import { Booking, DayClosing, Sale, Service } from "@/lib/types";
 import { bookingColor } from "@/lib/bookingColor";
+import { toBrusselsDateString } from "@/lib/tz";
 import CheckoutModal from "./CheckoutModal";
 import BlockTimeModal from "./BlockTimeModal";
 import CancelReasonModal from "./CancelReasonModal";
@@ -48,6 +49,7 @@ export default function AgendaPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [dayClosings, setDayClosings] = useState<DayClosing[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkoutBooking, setCheckoutBooking] = useState<Booking | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
@@ -99,19 +101,22 @@ export default function AgendaPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [bRes, sRes, salesRes] = await Promise.all([
+    const [bRes, sRes, salesRes, closingsRes] = await Promise.all([
       fetch("/api/bookings"),
       fetch("/api/services"),
       fetch("/api/sales"),
+      fetch("/api/day-closings"),
     ]);
-    const [bData, sData, salesData] = await Promise.all([
+    const [bData, sData, salesData, closingsData] = await Promise.all([
       bRes.json(),
       sRes.json(),
       salesRes.json(),
+      closingsRes.json(),
     ]);
     setBookings(bData);
     setServices(sData);
     setSales(salesData);
+    setDayClosings(closingsData);
     setLoading(false);
   }, []);
 
@@ -128,6 +133,17 @@ export default function AgendaPage() {
 
   const saleForBooking = (bookingId: string) =>
     sales.find((s) => s.bookingId === bookingId) || null;
+
+  // Of de dag van deze verkoop al definitief afgesloten is — zolang dat
+  // niet zo is, is corrigeren gewoon een fout ingegeven verrichting
+  // rechtzetten (geen reden/logje nodig, zie ook Cash).
+  function isSaleDayClosed(sale: Sale): boolean {
+    const saleDate = toBrusselsDateString(new Date(sale.createdAt));
+    const records = dayClosings.filter((c) => c.date === saleDate);
+    if (records.length === 0) return false;
+    const latest = records.reduce((a, b) => (a.closedAt > b.closedAt ? a : b));
+    return !latest.reopenedAt;
+  }
 
   async function updateStatus(id: string, status: string, cancelReason?: string) {
     await fetch(`/api/bookings/${id}`, {
@@ -149,6 +165,24 @@ export default function AgendaPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reason }),
+    });
+    load();
+  }
+
+  async function quickDeleteSale(booking: Booking) {
+    const sale = saleForBooking(booking.id);
+    if (!sale) return;
+    if (
+      !confirm(
+        `Kassaverrichting van ${booking.customerName || "deze klant"} (€${sale.total.toFixed(2)}) verwijderen?`
+      )
+    ) {
+      return;
+    }
+    await fetch(`/api/sales/${sale.id}/void`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
     });
     load();
   }
@@ -397,13 +431,33 @@ export default function AgendaPage() {
                     </button>
                   )}
                   {b.status === "done" && saleForBooking(b.id) && (
-                    <button
-                      onClick={() => setCheckoutBooking(b)}
-                      className="text-xs px-3 py-1.5 rounded-full border border-hairline hover:border-gold transition"
-                      title="Klant bedacht zich achteraf? Pas hier het bedrag of de betaalwijze aan."
-                    >
-                      Bedrag/betaling aanpassen
-                    </button>
+                    <>
+                      {!isSaleDayClosed(saleForBooking(b.id)!) ? (
+                        <>
+                          <button
+                            onClick={() => setCheckoutBooking(b)}
+                            className="text-xs px-3 py-1.5 rounded-full border border-hairline hover:border-gold transition"
+                            title="Klant bedacht zich achteraf? Pas hier het bedrag of de betaalwijze aan."
+                          >
+                            Bedrag/betaling aanpassen
+                          </button>
+                          <button
+                            onClick={() => quickDeleteSale(b)}
+                            className="text-xs px-3 py-1.5 rounded-full border border-hairline hover:border-red-700 hover:text-red-400 transition"
+                            title="Verkeerd geboekt? Verwijderen kan nog vrij zolang de dag niet is afgesloten."
+                          >
+                            Verwijderen
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => setCorrectionTarget(b)}
+                          className="text-xs px-3 py-1.5 rounded-full border border-hairline text-cream/40 hover:border-red-700 hover:text-red-400 transition"
+                        >
+                          Kassaverrichting corrigeren
+                        </button>
+                      )}
+                    </>
                   )}
                   {(b.status === "cancelled" || b.status === "blocked" || b.status === "no_show") && (
                     <button
@@ -465,10 +519,14 @@ export default function AgendaPage() {
         />
       )}
 
-      {detailBooking && (
+      {detailBooking && (() => {
+        const detailSale = saleForBooking(detailBooking.id);
+        const detailDayClosed = detailSale ? isSaleDayClosed(detailSale) : false;
+        return (
         <BookingDetailModal
           booking={detailBooking}
           service={serviceById(detailBooking.serviceId)}
+          isDayClosed={detailDayClosed}
           onClose={() => setDetailBooking(null)}
           onCheckout={() => {
             setCheckoutBooking(detailBooking);
@@ -496,8 +554,16 @@ export default function AgendaPage() {
             removeBooking(detailBooking.id);
             setDetailBooking(null);
           }}
+          onQuickDeleteSale={
+            detailSale
+              ? () => {
+                  quickDeleteSale(detailBooking);
+                  setDetailBooking(null);
+                }
+              : undefined
+          }
           onCorrect={
-            saleForBooking(detailBooking.id)
+            detailSale
               ? () => {
                   setCorrectionTarget(detailBooking);
                   setDetailBooking(null);
@@ -505,7 +571,8 @@ export default function AgendaPage() {
               : undefined
           }
         />
-      )}
+        );
+      })()}
 
       {correctionTarget && (() => {
         const sale = saleForBooking(correctionTarget.id);
