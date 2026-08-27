@@ -4,6 +4,17 @@ Overzicht van alle aanpassingen, in omgekeerd-chronologische volgorde (nieuwste
 eerst). Nuttig om snel te zien wat er al gebouwd is, zonder de hele
 gespreksgeschiedenis te moeten doorzoeken.
 
+## 2026-08-27 (laat in de nacht)
+
+- **"Vanaf" voor het bedrag in de prijslijst.** Op de publieke website, bij
+  het onderdeel "Diensten & tarieven" (de uitklapbare prijslijst per
+  categorie), staat er nu "vanaf &euro;..." in plaats van enkel
+  "&euro;..." bij elke dienst, omdat de uiteindelijke prijs kan afhangen
+  van bijvoorbeeld haarlengte. Enkel deze publieke prijslijst is aangepast
+  (`PriceListAccordion.tsx`); de prijzen tijdens het effectief boeken, in
+  de kassa en in het beheerscherm blijven ongewijzigd, want daar gaat het
+  om een concreet bedrag, niet om een prijsindicatie.
+
 ## 2026-08-27 (nacht)
 
 - **Tijd blokkeren: eindtijd rechtstreeks kiezen i.p.v. duur in minuten.**

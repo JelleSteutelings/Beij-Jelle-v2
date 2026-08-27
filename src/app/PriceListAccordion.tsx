@@ -48,7 +48,7 @@ export default function PriceListAccordion({
                     <span className="text-cream/90">{s.name}</span>
                     <span className="flex-1 border-b border-dotted border-hairline translate-y-[-3px]" />
                     <span className="font-display text-gold-light">
-                      &euro;{s.price}
+                      vanaf &euro;{s.price}
                     </span>
                   </li>
                 ))}
