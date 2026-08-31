@@ -48,6 +48,29 @@ export type Booking = {
   remindedLongAt?: string;
   remindedShortAt?: string;
   createdAt: string;
+  // Gekoppeld aan een RecurringSeries als deze afspraak automatisch is
+  // aangemaakt als onderdeel van een terugkerende reeks (bv. wekelijks bij
+  // dezelfde klant). Losse, niet-terugkerende afspraken hebben dit niet.
+  seriesId?: string;
+};
+
+/** Een terugkerende afsprakenreeks (bv. wekelijks, om de 2 weken...) —
+ * bij het aanmaken worden meteen alle individuele Booking-records
+ * gegenereerd (elk met dit seriesId), dus dit record zelf bevat geen
+ * planningslogica meer nadien, enkel de oorspronkelijke instellingen ter
+ * info en om een reeks als geheel te kunnen annuleren. */
+export type RecurringSeries = {
+  id: string;
+  customerId: string | null;
+  customerName: string;
+  serviceId: string;
+  intervalWeeks: number; // 1 = wekelijks, 2 = om de 2 weken, ...
+  time: string; // "HH:MM", Brusselse wandkloktijd — elke afspraak in de reeks op dit tijdstip
+  notes?: string;
+  createdAt: string;
+  // Ingevuld zodra de reeks (deels of volledig) stopgezet is via "Deze en
+  // alle volgende" of "De hele reeks" annuleren.
+  endedAt?: string;
 };
 
 export type Product = {
@@ -240,6 +263,7 @@ export type DB = {
   services: Service[];
   customers: Customer[];
   bookings: Booking[];
+  recurringSeries: RecurringSeries[];
   products: Product[];
   stockMovements: StockMovement[];
   purchaseOrders: PurchaseOrder[];

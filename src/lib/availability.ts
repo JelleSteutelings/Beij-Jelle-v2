@@ -1,7 +1,7 @@
 import { Booking, BookingBlock, OpeningHours, DayHours, Service, ServiceBlock } from "./types";
 import { brusselsDateAtMinutes, toBrusselsDateString } from "./tz";
 
-const DAY_KEYS: (keyof OpeningHours)[] = [
+export const DAY_KEYS: (keyof OpeningHours)[] = [
   "sun",
   "mon",
   "tue",
@@ -11,7 +11,7 @@ const DAY_KEYS: (keyof OpeningHours)[] = [
   "sat",
 ];
 
-function toMinutes(hhmm: string): number {
+export function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);
   return h * 60 + m;
 }

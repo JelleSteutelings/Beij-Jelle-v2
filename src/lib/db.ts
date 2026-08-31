@@ -11,6 +11,7 @@ function defaultDB(): DB {
     services: [],
     customers: [],
     bookings: [],
+    recurringSeries: [],
     products: [],
     stockMovements: [],
     purchaseOrders: [],
@@ -69,6 +70,7 @@ export function readDB(): DB {
   if (!db.cancellationRecords) db.cancellationRecords = [];
   if (!db.correctionRecords) db.correctionRecords = [];
   if (!db.dayClosings) db.dayClosings = [];
+  if (!db.recurringSeries) db.recurringSeries = [];
   db.products.forEach((p, i) => {
     if (p.order === undefined) p.order = i;
   });

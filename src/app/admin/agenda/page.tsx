@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Booking, DayClosing, Sale, Service } from "@/lib/types";
+import { Booking, DayClosing, RecurringSeries, Sale, Service } from "@/lib/types";
 import { bookingColor } from "@/lib/bookingColor";
 import { toBrusselsDateString } from "@/lib/tz";
 import CheckoutModal from "./CheckoutModal";
 import BlockTimeModal from "./BlockTimeModal";
-import CancelReasonModal from "./CancelReasonModal";
+import CancelReasonModal, { CancelScope } from "./CancelReasonModal";
 import BookingDetailModal from "./BookingDetailModal";
 import CorrectionReasonModal from "./CorrectionReasonModal";
 import VacationModal from "./VacationModal";
@@ -54,6 +54,7 @@ export default function AgendaPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [dayClosings, setDayClosings] = useState<DayClosing[]>([]);
+  const [recurringSeries, setRecurringSeries] = useState<RecurringSeries[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkoutBooking, setCheckoutBooking] = useState<Booking | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
@@ -105,22 +106,25 @@ export default function AgendaPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [bRes, sRes, salesRes, closingsRes] = await Promise.all([
+    const [bRes, sRes, salesRes, closingsRes, seriesRes] = await Promise.all([
       fetch("/api/bookings"),
       fetch("/api/services"),
       fetch("/api/sales"),
       fetch("/api/day-closings"),
+      fetch("/api/recurring-series"),
     ]);
-    const [bData, sData, salesData, closingsData] = await Promise.all([
+    const [bData, sData, salesData, closingsData, seriesData] = await Promise.all([
       bRes.json(),
       sRes.json(),
       salesRes.json(),
       closingsRes.json(),
+      seriesRes.json(),
     ]);
     setBookings(bData);
     setServices(sData);
     setSales(salesData);
     setDayClosings(closingsData);
+    setRecurringSeries(seriesData);
     setLoading(false);
   }, []);
 
@@ -163,6 +167,34 @@ export default function AgendaPage() {
     });
     load();
   }
+
+  /** Annuleert een afspraak — "single" gaat via de gewone route (zoals
+   * altijd), "following"/"series" annuleren in één keer meerdere afspraken
+   * uit dezelfde terugkerende reeks. */
+  async function cancelBooking(booking: Booking, reason: string, scope: CancelScope) {
+    if (scope === "single") {
+      await updateStatus(booking.id, "cancelled", reason);
+      return;
+    }
+    await fetch(`/api/bookings/${booking.id}/cancel-series`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scope, reason }),
+    });
+    load();
+  }
+
+  function seriesForBooking(booking: Booking): RecurringSeries | null {
+    if (!booking.seriesId) return null;
+    return recurringSeries.find((s) => s.id === booking.seriesId) || null;
+  }
+
+  const INTERVAL_LABEL: Record<number, string> = {
+    1: "Wekelijks",
+    2: "Om de 2 weken",
+    3: "Om de 3 weken",
+    4: "Om de 4 weken",
+  };
 
   async function removeBooking(id: string) {
     if (!confirm("Deze afspraak definitief verwijderen?")) return;
@@ -338,6 +370,11 @@ export default function AgendaPage() {
                     </p>
                     <p className="text-xs text-cream/50 mt-0.5">
                       {b.customerName}
+                      {seriesForBooking(b) && (
+                        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full border border-hairline text-cream/40">
+                          &#8635; {INTERVAL_LABEL[seriesForBooking(b)!.intervalWeeks] || "Reeks"}
+                        </span>
+                      )}
                     </p>
                     {b.blocks && b.blocks.length > 1 && (
                       <p className="text-xs text-cream/40 mt-1.5 flex flex-wrap gap-x-2 gap-y-0.5">
@@ -521,9 +558,10 @@ export default function AgendaPage() {
       {cancelTarget && (
         <CancelReasonModal
           customerName={cancelTarget.customerName || "deze klant"}
+          isSeries={!!cancelTarget.seriesId}
           onClose={() => setCancelTarget(null)}
-          onConfirm={(reason) => {
-            updateStatus(cancelTarget.id, "cancelled", reason);
+          onConfirm={(reason, scope) => {
+            cancelBooking(cancelTarget, reason, scope);
             setCancelTarget(null);
           }}
         />
@@ -536,6 +574,7 @@ export default function AgendaPage() {
         <BookingDetailModal
           booking={detailBooking}
           service={serviceById(detailBooking.serviceId)}
+          series={seriesForBooking(detailBooking)}
           isDayClosed={detailDayClosed}
           onClose={() => setDetailBooking(null)}
           onCheckout={() => {

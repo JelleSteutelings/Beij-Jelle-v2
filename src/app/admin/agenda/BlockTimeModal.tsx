@@ -55,6 +55,21 @@ export default function BlockTimeModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Terugkerende afspraak — enkel relevant bij "Afspraak toevoegen".
+  // repeat 0 = niet herhalen, anders het aantal weken tussen elke afspraak.
+  const [repeat, setRepeat] = useState<0 | 1 | 2 | 3 | 4>(0);
+  const [endType, setEndType] = useState<"count" | "until">("count");
+  const [repeatCount, setRepeatCount] = useState(10);
+  const [repeatUntil, setRepeatUntil] = useState("");
+  const [seriesResult, setSeriesResult] = useState<{
+    created: number;
+    skipped: { date: string; reason: string }[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (mode === "block") setRepeat(0);
+  }, [mode]);
+
   useEffect(() => {
     fetch("/api/services")
       .then((r) => r.json())
@@ -126,6 +141,14 @@ export default function BlockTimeModal({
       setError("Kies een klant, maak een nieuwe aan, of vul minstens een naam in.");
       return;
     }
+    if (mode === "appointment" && repeat > 0 && endType === "count" && (!repeatCount || repeatCount < 1)) {
+      setError("Geef een geldig aantal keer op.");
+      return;
+    }
+    if (mode === "appointment" && repeat > 0 && endType === "until" && (!repeatUntil || repeatUntil < date)) {
+      setError("Kies een einddatum die na de startdatum ligt.");
+      return;
+    }
 
     setSubmitting(true);
 
@@ -157,6 +180,33 @@ export default function BlockTimeModal({
       customerName = custData.customer.name;
     }
 
+    if (mode === "appointment" && repeat > 0) {
+      const res = await fetch("/api/bookings/recurring", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId,
+          customerId,
+          customerName,
+          notes,
+          firstDate: date,
+          time: start,
+          intervalWeeks: repeat,
+          endType,
+          count: repeatCount,
+          untilDate: repeatUntil,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      setSubmitting(false);
+      if (res.ok) {
+        setSeriesResult({ created: data.created.length, skipped: data.skipped });
+      } else {
+        setError(data.error || "Er ging iets mis.");
+      }
+      return;
+    }
+
     const res = await fetch("/api/bookings/manual", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -178,6 +228,42 @@ export default function BlockTimeModal({
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
       <div className="bg-panel border border-hairline rounded-2xl w-full max-w-md p-6">
+        {seriesResult ? (
+          <div>
+            <h2 className="font-display text-xl mb-1">Reeks aangemaakt</h2>
+            <p className="text-cream/70 text-sm mb-4">
+              {seriesResult.created} afspra{seriesResult.created === 1 ? "ak" : "ken"} aangemaakt.
+            </p>
+            {seriesResult.skipped.length > 0 && (
+              <div className="mb-5">
+                <p className="text-xs text-amber-300/90 mb-2">
+                  {seriesResult.skipped.length} datum
+                  {seriesResult.skipped.length === 1 ? "" : "s"} overgeslagen:
+                </p>
+                <ul className="text-xs text-cream/50 space-y-1 max-h-40 overflow-y-auto">
+                  {seriesResult.skipped.map((s, i) => (
+                    <li key={i}>
+                      {new Date(s.date + "T12:00:00").toLocaleDateString("nl-BE", {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                        timeZone: "Europe/Brussels",
+                      })}{" "}
+                      &mdash; {s.reason}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <button
+              onClick={onDone}
+              className="w-full py-2.5 rounded-full bg-gold-gradient text-deep font-semibold text-sm transition"
+            >
+              Sluiten
+            </button>
+          </div>
+        ) : (
+        <>
         <h2 className="font-display text-xl mb-5">
           {date} toevoegen
         </h2>
@@ -367,6 +453,68 @@ export default function BlockTimeModal({
                   className="w-full bg-deep border border-hairline rounded-lg px-3 py-2 focus:outline-none focus:border-gold"
                 />
               </div>
+
+              <div className="pt-2 border-t border-hairline/30">
+                <label className="block text-xs text-cream/50 mb-1.5">
+                  Herhalen
+                </label>
+                <select
+                  value={repeat}
+                  onChange={(e) => setRepeat(Number(e.target.value) as 0 | 1 | 2 | 3 | 4)}
+                  className="w-full bg-deep border border-hairline rounded-lg px-3 py-2 focus:outline-none focus:border-gold"
+                >
+                  <option value={0}>Niet herhalen</option>
+                  <option value={1}>Wekelijks</option>
+                  <option value={2}>Om de 2 weken</option>
+                  <option value={3}>Om de 3 weken</option>
+                  <option value={4}>Om de 4 weken</option>
+                </select>
+
+                {repeat > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1.5 text-xs text-cream/70">
+                        <input
+                          type="radio"
+                          checked={endType === "count"}
+                          onChange={() => setEndType("count")}
+                        />
+                        Aantal keer
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={52}
+                        disabled={endType !== "count"}
+                        value={repeatCount}
+                        onChange={(e) => setRepeatCount(Number(e.target.value))}
+                        className="w-20 bg-deep border border-hairline rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-gold disabled:opacity-40"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1.5 text-xs text-cream/70">
+                        <input
+                          type="radio"
+                          checked={endType === "until"}
+                          onChange={() => setEndType("until")}
+                        />
+                        Tot en met
+                      </label>
+                      <input
+                        type="date"
+                        disabled={endType !== "until"}
+                        value={repeatUntil}
+                        onChange={(e) => setRepeatUntil(e.target.value)}
+                        className="bg-deep border border-hairline rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-gold disabled:opacity-40 [color-scheme:dark]"
+                      />
+                    </div>
+                    <p className="text-[11px] text-cream/35">
+                      Datums die niet kunnen (gesloten of al bezet) worden
+                      automatisch overgeslagen — daarna krijg je een overzicht.
+                    </p>
+                  </div>
+                )}
+              </div>
             </>
           )}
 
@@ -399,9 +547,11 @@ export default function BlockTimeModal({
             onClick={handleSubmit}
             className="flex-1 py-2.5 rounded-full bg-gold-gradient text-deep font-semibold text-sm disabled:opacity-40 transition"
           >
-            {submitting ? "Bezig..." : "Toevoegen"}
+            {submitting ? "Bezig..." : repeat > 0 ? "Reeks aanmaken" : "Toevoegen"}
           </button>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

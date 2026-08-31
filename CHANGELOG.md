@@ -4,6 +4,40 @@ Overzicht van alle aanpassingen, in omgekeerd-chronologische volgorde (nieuwste
 eerst). Nuttig om snel te zien wat er al gebouwd is, zonder de hele
 gespreksgeschiedenis te moeten doorzoeken.
 
+## 2026-08-31 (avond)
+
+- **Terugkerende afspraken.** Bij "Afspraak toevoegen" staat er nu een
+  "Herhalen"-keuze: niet herhalen, wekelijks, om de 2, 3 of 4 weken —
+  met daaronder ofwel een aantal keer, ofwel een "tot en met"-einddatum.
+  Bij bevestigen worden meteen alle afspraken van de reeks aangemaakt
+  (zelfde klant, dienst en tijdstip, telkens het gekozen aantal weken
+  verder). Een datum die niet kan — de salon is dan gesloten, of het
+  tijdstip is al bezet door een andere afspraak of blokkering
+  (bijvoorbeeld een ingeplande vakantie) — wordt automatisch overgeslagen;
+  daarna toont het scherm een duidelijk overzicht van hoeveel afspraken
+  er aangemaakt zijn en welke datums er (en waarom) overgeslagen werden.
+  "Tijd blokkeren" blijft ongewijzigd werken zoals voorheen, zonder
+  herhalen.
+
+  Een afspraak die deel uitmaakt van een reeks krijgt overal een klein
+  merkteken ("↻ Wekelijks" e.d.) in de agenda, zodat meteen duidelijk is
+  dat het om een terugkerende klant gaat. Bij het annuleren van zo'n
+  afspraak verschijnt een extra keuze: enkel deze ene afspraak, deze en
+  alle volgende, of de hele reeks — net zoals in Google Agenda/Outlook.
+  Elke geannuleerde afspraak komt, zoals gebruikelijk, gewoon in het
+  annulatie-register terecht.
+
+  Getest: een reeks die telkens op een normale openingsdag valt, wordt
+  volledig aangemaakt; een reeks die op een structureel gesloten dag valt
+  (bv. dinsdag) wordt volledig overgeslagen met de juiste reden; een
+  botsing met een bestaande afspraak wordt correct overgeslagen terwijl de
+  andere data van diezelfde reeks gewoon doorgaan; "deze en alle volgende"
+  annuleert enkel de latere afspraken en laat eerdere staan; "hele reeks"
+  annuleert ook de eerdere, nog openstaande afspraken, met telkens een
+  eigen item in het annulatie-register. Ook visueel gecontroleerd: het
+  merkteken in de dag- en weekweergave, en de tekst "Terugkerende afspraak"
+  in het detailvenster.
+
 ## 2026-08-28 (vroege ochtend)
 
 - **Livegang: bevestiging vereenvoudigd naar een echte ja/nee-vraag.** De

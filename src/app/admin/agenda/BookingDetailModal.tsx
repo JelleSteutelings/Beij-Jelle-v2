@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Booking, Customer, Service } from "@/lib/types";
+import { Booking, Customer, RecurringSeries, Service } from "@/lib/types";
+
+const INTERVAL_LABEL: Record<number, string> = {
+  1: "Wekelijks",
+  2: "Om de 2 weken",
+  3: "Om de 3 weken",
+  4: "Om de 4 weken",
+};
 
 const STATUS_LABEL: Record<string, string> = {
   confirmed: "Bevestigd",
@@ -26,6 +33,7 @@ function formatDateTime(iso: string) {
 export default function BookingDetailModal({
   booking,
   service,
+  series,
   isDayClosed,
   onClose,
   onCheckout,
@@ -39,6 +47,9 @@ export default function BookingDetailModal({
 }: {
   booking: Booking;
   service: Service | null;
+  /** De reeks waar deze afspraak deel van uitmaakt, indien van toepassing —
+   * enkel om aan Jelle te tonen dat het om een terugkerende afspraak gaat. */
+  series?: RecurringSeries | null;
   /** Of de dag van de kassaverrichting bij deze afspraak al definitief is
    * afgesloten (enkel relevant voor status "done"). Zolang dat niet zo is,
    * kan de verrichting nog vrij aangepast/verwijderd worden — pas na
@@ -83,6 +94,11 @@ export default function BookingDetailModal({
         </div>
         <p className="text-cream/50 text-sm mb-4">
           {service?.name || booking.notes || "Afspraak"}
+          {series && (
+            <span className="block text-[11px] text-cream/40 mt-1">
+              &#8635; Terugkerende afspraak &mdash; {INTERVAL_LABEL[series.intervalWeeks] || "reeks"}
+            </span>
+          )}
         </p>
 
         <div className="space-y-1.5 text-sm mb-5">
