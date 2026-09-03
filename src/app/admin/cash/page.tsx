@@ -218,6 +218,31 @@ export default function CashPage() {
     .reduce((sum, s) => sum + s.total, 0);
   const grandTotal = cashTotal + qrTotal + voucherTotal;
 
+  // Opsplitsing diensten/verkoop (producten) — los van de betaalwijze
+  // hierboven. Het effectief ontvangen bedrag (s.total) wordt per
+  // verrichting proportioneel verdeeld volgens het gewicht van diensten
+  // t.o.v. producten in de oorspronkelijke (niet-afgeprijsde) bedragen op
+  // de bonlijn — zo klopt "Diensten + Verkoop" ook nog als er een
+  // studentenkorting of een handmatig aangepast bedrag op die verrichting
+  // toegepast is, in plaats van gewoon de brutoprijzen van de bonlijnen
+  // zelf op te tellen (die zouden dan niet meer overeenkomen met het
+  // totaal hierboven).
+  const { serviceTotal, productTotal } = useMemo(() => {
+    let serviceSum = 0;
+    let productSum = 0;
+    for (const s of daySales) {
+      const itemsGross = s.items.reduce((sum, i) => sum + i.price * i.qty, 0);
+      if (itemsGross <= 0) continue;
+      const serviceGross = s.items
+        .filter((i) => i.type === "service")
+        .reduce((sum, i) => sum + i.price * i.qty, 0);
+      const productGross = itemsGross - serviceGross;
+      serviceSum += s.total * (serviceGross / itemsGross);
+      productSum += s.total * (productGross / itemsGross);
+    }
+    return { serviceTotal: serviceSum, productTotal: productSum };
+  }, [daySales]);
+
   const customerName = (s: Sale) =>
     s.customerName || customers.find((c) => c.id === s.customerId)?.name || "—";
 
@@ -288,6 +313,20 @@ export default function CashPage() {
             <div className="border border-gold/50 rounded-xl p-4 bg-panel2/50">
               <p className="text-[11px] text-gold/70 mb-1">Totaal</p>
               <p className="font-display text-2xl text-gold-light">{eur(grandTotal)}</p>
+            </div>
+          </div>
+
+          <h2 className="text-xs text-gold/80 uppercase tracking-wide mb-2">
+            Diensten &amp; verkoop
+          </h2>
+          <div className="grid grid-cols-2 gap-3 mb-8">
+            <div className="border border-hairline rounded-xl p-4 bg-panel/30">
+              <p className="text-[11px] text-cream/40 mb-1">Diensten</p>
+              <p className="font-display text-2xl text-gold-light">{eur(serviceTotal)}</p>
+            </div>
+            <div className="border border-hairline rounded-xl p-4 bg-panel/30">
+              <p className="text-[11px] text-cream/40 mb-1">Verkoop (producten)</p>
+              <p className="font-display text-2xl text-gold-light">{eur(productTotal)}</p>
             </div>
           </div>
 

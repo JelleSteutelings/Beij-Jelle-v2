@@ -4,6 +4,21 @@ Overzicht van alle aanpassingen, in omgekeerd-chronologische volgorde (nieuwste
 eerst). Nuttig om snel te zien wat er al gebouwd is, zonder de hele
 gespreksgeschiedenis te moeten doorzoeken.
 
+## 2026-09-03
+
+- **Cash: opsplitsing Diensten & verkoop.** Naast de bestaande opsplitsing
+  per betaalwijze (Cash/Payconiq/Cadeaubon) toont het scherm Cash nu ook
+  een opsplitsing per soort omzet: "Diensten" (behandelingen) tegenover
+  "Verkoop (producten)". Bij een verrichting met zowel een dienst als een
+  product (bv. een knipbeurt + een verkocht product op dezelfde bon)
+  wordt het effectief ontvangen bedrag verdeeld naar verhouding van de
+  oorspronkelijke bonlijnen — zo klopt "Diensten + Verkoop" nog steeds met
+  het totaal bovenaan, ook als er een studentenkorting of een handmatig
+  aangepast bedrag op die verrichting toegepast werd. Getest met een
+  zuivere dienst-verkoop, een zuivere product-verkoop, en een gemengde
+  verkoop met studentenkorting — de opsplitsing kwam in alle gevallen
+  exact overeen met de verwachte bedragen en telde op tot het totaal.
+
 ## 2026-08-31 (avond)
 
 - **Terugkerende afspraken.** Bij "Afspraak toevoegen" staat er nu een
