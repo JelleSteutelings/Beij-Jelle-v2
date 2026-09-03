@@ -18,6 +18,36 @@ type SettingsDraft = Omit<Settings, "adminPasswordHash">;
 
 const MAX_BLOCKS = 5;
 
+/** Foto's van een telefoon zijn vaak enkele MB groot — te groot om zomaar
+ * als data-URL in het (JSON-)databestand te bewaren. Verkleint client-side
+ * naar een redelijke maximumbreedte en zet om naar JPEG, zodat elke
+ * geüploade foto (ongeacht bronformaat/-grootte) klein genoeg blijft. */
+function compressImageFile(file: File, maxWidth = 1600, quality = 0.85): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new window.Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Kon de afbeelding niet verwerken."));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => reject(new Error("Dit lijkt geen geldige afbeelding te zijn."));
+      img.src = reader.result as string;
+    };
+    reader.onerror = () => reject(new Error("Kon het bestand niet lezen."));
+    reader.readAsDataURL(file);
+  });
+}
+
 /** Blijvend zichtbare melding zolang een sectie niet-opgeslagen wijzigingen
  * heeft — verdwijnt automatisch zodra er (succesvol) opgeslagen is. */
 function UnsavedNotice({ show }: { show: boolean }) {
@@ -81,6 +111,8 @@ export default function InstellingenPage() {
   const [testEmailStatus, setTestEmailStatus] = useState<string | null>(null);
   const [testEmailSending, setTestEmailSending] = useState(false);
   const [newPassword, setNewPassword] = useState("");
+  const [homeImageUploading, setHomeImageUploading] = useState(false);
+  const [homeImageError, setHomeImageError] = useState<string | null>(null);
 
   // Correcties (kassaverrichtingen ongedaan gemaakt) — bewust achter een
   // extra wachtwoordcontrole, los van de gewone admin-login, zodat dit niet
@@ -1033,6 +1065,94 @@ export default function InstellingenPage() {
                 className="block text-xs text-cream/40 hover:text-red-400"
               >
                 Verwijderen
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* SFEERFOTO VOORPAGINA */}
+      <section className="mt-12">
+        <h2 className="font-display text-lg text-gold mb-1">Foto voorpagina</h2>
+        <p className="text-xs text-cream/40 mb-4">
+          De sfeerfoto op de voorpagina van de website (onder de titel). Upload
+          hier een nieuwe foto om die zelf te vervangen, zonder dat daarvoor
+          een nieuwe versie van de app nodig is.
+        </p>
+        <div className="flex items-start gap-4">
+          {settings?.homeImageDataUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={settings.homeImageDataUrl}
+              alt="Sfeerfoto voorpagina"
+              className="w-40 h-28 object-cover rounded-lg border border-hairline bg-deep"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src="/salon-foto.png"
+              alt="Huidige sfeerfoto (standaard)"
+              className="w-40 h-28 object-cover rounded-lg border border-hairline bg-deep"
+            />
+          )}
+          <div className="space-y-2">
+            <input
+              type="file"
+              accept="image/*"
+              disabled={homeImageUploading}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (!file || !settings) return;
+                setHomeImageError(null);
+                setHomeImageUploading(true);
+                try {
+                  const dataUrl = await compressImageFile(file);
+                  const res = await fetch("/api/settings", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ homeImageDataUrl: dataUrl }),
+                  });
+                  if (!res.ok) throw new Error();
+                  setSettings({ ...settings, homeImageDataUrl: dataUrl });
+                  setSavedSettings((prev) => (prev ? { ...prev, homeImageDataUrl: dataUrl } : prev));
+                  flash("Sfeerfoto opgeslagen.");
+                } catch {
+                  setHomeImageError(
+                    "Opslaan van de foto is mislukt. Probeer opnieuw, of met een andere foto."
+                  );
+                } finally {
+                  setHomeImageUploading(false);
+                }
+              }}
+              className="text-xs text-cream/60"
+            />
+            {homeImageUploading && (
+              <p className="text-[11px] text-cream/40">Bezig met verwerken...</p>
+            )}
+            {homeImageError && (
+              <p className="text-[11px] text-red-400">{homeImageError}</p>
+            )}
+            {settings?.homeImageDataUrl && (
+              <button
+                onClick={async () => {
+                  if (!settings) return;
+                  const res = await fetch("/api/settings", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ homeImageDataUrl: "" }),
+                  });
+                  if (!res.ok) {
+                    setHomeImageError("Terugzetten is mislukt. Probeer opnieuw.");
+                    return;
+                  }
+                  setSettings({ ...settings, homeImageDataUrl: "" });
+                  setSavedSettings((prev) => (prev ? { ...prev, homeImageDataUrl: "" } : prev));
+                  flash("Standaardfoto teruggezet.");
+                }}
+                className="block text-xs text-cream/40 hover:text-red-400"
+              >
+                Terugzetten naar standaardfoto
               </button>
             )}
           </div>

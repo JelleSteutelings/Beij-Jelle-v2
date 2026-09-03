@@ -4,6 +4,30 @@ Overzicht van alle aanpassingen, in omgekeerd-chronologische volgorde (nieuwste
 eerst). Nuttig om snel te zien wat er al gebouwd is, zonder de hele
 gespreksgeschiedenis te moeten doorzoeken.
 
+## 2026-09-03 (avond)
+
+- **Instellingen: sfeerfoto voorpagina zelf vervangen.** Nieuwe sectie
+  "Foto voorpagina" in Instellingen (net onder QR-betaling) waar Jelle
+  zelf een nieuwe foto kan uploaden om de sfeerfoto op de voorpagina
+  (onder de titel) te vervangen — zonder daarvoor een nieuwe versie van de
+  app nodig te hebben. Een geüploade foto wordt automatisch client-side
+  verkleind (max. 1600px breed, JPEG) zodat ook een grote foto rechtstreeks
+  van de telefoon geen probleem is voor het databestand. Een knop
+  "Terugzetten naar standaardfoto" herstelt de meegeleverde foto. Zolang
+  er niets geüpload is, blijft de bestaande standaardfoto gewoon getoond.
+  Getest: uploaden van een testfoto van 3000×2000px werd correct verkleind
+  naar 1600×1067px, de voorpagina toont nadien meteen de nieuwe foto, en
+  "Terugzetten" herstelt de standaardfoto.
+
+- **Cash: diensten & verkoop nu ook opgesplitst per betaalwijze.** De
+  eerder toegevoegde opsplitsing Diensten/Verkoop toont nu, in een tabel,
+  voor elk van de twee ook de opsplitsing Cash/Payconiq-QR/Cadeaubon (plus
+  een totaalkolom en -rij) — in plaats van enkel de twee totalen. Getest
+  met vier verrichtingen (zuivere dienst, zuiver product, een gemengde
+  verkoop met studentenkorting, en een cadeaubon-betaling): elke rij en
+  kolom van de tabel kwam exact overeen met de verwachte bedragen en met
+  de bestaande totalen bovenaan de pagina.
+
 ## 2026-09-03
 
 - **Cash: opsplitsing Diensten & verkoop.** Naast de bestaande opsplitsing

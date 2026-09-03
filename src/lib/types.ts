@@ -254,6 +254,10 @@ export type Settings = {
   reminderLongHours: number; // bv. 24 = een dag op voorhand
   reminderShortHours: number; // bv. 2 = twee uur op voorhand
   qrImageDataUrl?: string; // Payconiq/Bancontact QR, uploaded by the owner
+  // Sfeerfoto op de voorpagina — indien niet ingesteld valt de site terug op
+  // de meegeleverde /salon-foto.png. Zo kan Jelle deze zelf vervangen
+  // (Instellingen) zonder een nieuwe versie van de app nodig te hebben.
+  homeImageDataUrl?: string;
   adminPasswordHash: string;
   slotStepMinutes: number; // granularity for booking slots
   studentDiscountPercent: number; // bv. 10 = 10% korting

@@ -218,18 +218,18 @@ export default function CashPage() {
     .reduce((sum, s) => sum + s.total, 0);
   const grandTotal = cashTotal + qrTotal + voucherTotal;
 
-  // Opsplitsing diensten/verkoop (producten) — los van de betaalwijze
-  // hierboven. Het effectief ontvangen bedrag (s.total) wordt per
-  // verrichting proportioneel verdeeld volgens het gewicht van diensten
-  // t.o.v. producten in de oorspronkelijke (niet-afgeprijsde) bedragen op
-  // de bonlijn — zo klopt "Diensten + Verkoop" ook nog als er een
-  // studentenkorting of een handmatig aangepast bedrag op die verrichting
-  // toegepast is, in plaats van gewoon de brutoprijzen van de bonlijnen
-  // zelf op te tellen (die zouden dan niet meer overeenkomen met het
-  // totaal hierboven).
-  const { serviceTotal, productTotal } = useMemo(() => {
-    let serviceSum = 0;
-    let productSum = 0;
+  // Opsplitsing diensten/verkoop (producten), telkens ook per betaalwijze.
+  // Het effectief ontvangen bedrag (s.total) van elke verrichting wordt
+  // proportioneel verdeeld volgens het gewicht van diensten t.o.v.
+  // producten in de oorspronkelijke (niet-afgeprijsde) bedragen op de
+  // bonlijn, en dat aandeel komt dan terecht bij de betaalwijze van díe
+  // verrichting — zo klopt elke rij en elke kolom nog steeds op met de
+  // totalen hierboven, ook als er een studentenkorting of een handmatig
+  // aangepast bedrag toegepast is.
+  const { serviceByMethod, productByMethod } = useMemo(() => {
+    const empty = () => ({ cash: 0, qr: 0, voucher: 0 });
+    const service = empty();
+    const product = empty();
     for (const s of daySales) {
       const itemsGross = s.items.reduce((sum, i) => sum + i.price * i.qty, 0);
       if (itemsGross <= 0) continue;
@@ -237,11 +237,14 @@ export default function CashPage() {
         .filter((i) => i.type === "service")
         .reduce((sum, i) => sum + i.price * i.qty, 0);
       const productGross = itemsGross - serviceGross;
-      serviceSum += s.total * (serviceGross / itemsGross);
-      productSum += s.total * (productGross / itemsGross);
+      service[s.paymentMethod] += s.total * (serviceGross / itemsGross);
+      product[s.paymentMethod] += s.total * (productGross / itemsGross);
     }
-    return { serviceTotal: serviceSum, productTotal: productSum };
+    return { serviceByMethod: service, productByMethod: product };
   }, [daySales]);
+
+  const serviceTotal = serviceByMethod.cash + serviceByMethod.qr + serviceByMethod.voucher;
+  const productTotal = productByMethod.cash + productByMethod.qr + productByMethod.voucher;
 
   const customerName = (s: Sale) =>
     s.customerName || customers.find((c) => c.id === s.customerId)?.name || "—";
@@ -317,17 +320,43 @@ export default function CashPage() {
           </div>
 
           <h2 className="text-xs text-gold/80 uppercase tracking-wide mb-2">
-            Diensten &amp; verkoop
+            Diensten &amp; verkoop, per betaalwijze
           </h2>
-          <div className="grid grid-cols-2 gap-3 mb-8">
-            <div className="border border-hairline rounded-xl p-4 bg-panel/30">
-              <p className="text-[11px] text-cream/40 mb-1">Diensten</p>
-              <p className="font-display text-2xl text-gold-light">{eur(serviceTotal)}</p>
-            </div>
-            <div className="border border-hairline rounded-xl p-4 bg-panel/30">
-              <p className="text-[11px] text-cream/40 mb-1">Verkoop (producten)</p>
-              <p className="font-display text-2xl text-gold-light">{eur(productTotal)}</p>
-            </div>
+          <div className="border border-hairline rounded-xl overflow-x-auto mb-8">
+            <table className="w-full text-sm min-w-[420px]">
+              <thead>
+                <tr className="border-b border-hairline text-[11px] text-cream/40 uppercase tracking-wide">
+                  <th className="text-left font-normal px-4 py-2.5"> </th>
+                  <th className="text-right font-normal px-4 py-2.5">Cash</th>
+                  <th className="text-right font-normal px-4 py-2.5">Payconiq / QR</th>
+                  <th className="text-right font-normal px-4 py-2.5">Cadeaubon</th>
+                  <th className="text-right font-normal px-4 py-2.5 text-gold/70">Totaal</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-hairline/40">
+                  <td className="px-4 py-2.5 text-cream/70">Diensten</td>
+                  <td className="px-4 py-2.5 text-right text-cream/80">{eur(serviceByMethod.cash)}</td>
+                  <td className="px-4 py-2.5 text-right text-cream/80">{eur(serviceByMethod.qr)}</td>
+                  <td className="px-4 py-2.5 text-right text-cream/80">{eur(serviceByMethod.voucher)}</td>
+                  <td className="px-4 py-2.5 text-right font-display text-gold-light">{eur(serviceTotal)}</td>
+                </tr>
+                <tr className="border-b border-hairline/40">
+                  <td className="px-4 py-2.5 text-cream/70">Verkoop (producten)</td>
+                  <td className="px-4 py-2.5 text-right text-cream/80">{eur(productByMethod.cash)}</td>
+                  <td className="px-4 py-2.5 text-right text-cream/80">{eur(productByMethod.qr)}</td>
+                  <td className="px-4 py-2.5 text-right text-cream/80">{eur(productByMethod.voucher)}</td>
+                  <td className="px-4 py-2.5 text-right font-display text-gold-light">{eur(productTotal)}</td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-2.5 text-[11px] text-cream/40 uppercase tracking-wide">Totaal</td>
+                  <td className="px-4 py-2.5 text-right text-cream/60">{eur(cashTotal)}</td>
+                  <td className="px-4 py-2.5 text-right text-cream/60">{eur(qrTotal)}</td>
+                  <td className="px-4 py-2.5 text-right text-cream/60">{eur(voucherTotal)}</td>
+                  <td className="px-4 py-2.5 text-right font-display text-gold-light font-semibold">{eur(grandTotal)}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
           {closeError && <p className="text-red-400 text-xs mb-4">{closeError}</p>}

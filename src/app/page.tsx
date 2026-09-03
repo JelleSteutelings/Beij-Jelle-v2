@@ -61,7 +61,7 @@ export default function HomePage() {
         <div className="relative rounded-2xl overflow-hidden border border-hairline shadow-[0_0_40px_rgba(224,168,63,0.08)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/salon-foto.png"
+            src={settings.homeImageDataUrl || "/salon-foto.png"}
             alt="Jelle aan het werk in de salon"
             className="w-full h-auto object-cover"
           />
