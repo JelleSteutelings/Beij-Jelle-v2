@@ -56,9 +56,9 @@ npm run dev
 Open http://localhost:3000 voor de site, en http://localhost:3000/admin voor
 het beheer.
 
-**Standaard admin-wachtwoord:** `jelle2026` — verander dit meteen via
-Instellingen → Wachtwoord wijzigen, of pas het aan in `src/lib/db.ts`
-(`adminPasswordHash`) vóór de eerste opstart.
+**Admin-wachtwoord (lokaal ontwikkelen):** bij `npm run dev` is het
+testwachtwoord `jelle2026`. In **productie** bestaat er geen standaardwachtwoord
+meer: zie "Beveiliging in productie" hieronder.
 
 ## Tijdzone
 
@@ -72,8 +72,11 @@ browser (in België) gewoon de juiste, lokale tijd.
 1. Zet dit project in een git-repository (GitHub/GitLab).
 2. Maak een nieuw project aan op [Railway](https://railway.app) of
    [Render](https://render.com), koppel de repository.
-3. Zet de environment variable `SESSION_SECRET` op een lange willekeurige
-   waarde.
+3. Zet de environment variables `SESSION_SECRET` (lange willekeurige tekst,
+   minstens 32 tekens) en `ADMIN_INITIAL_PASSWORD` (sterk wachtwoord, minstens
+   10 tekens). Zonder geldige `SESSION_SECRET` is inloggen in het beheer
+   geblokkeerd; zonder wachtwoord (of met het oude standaardwachtwoord in de
+   database) kan je enkel inloggen met `ADMIN_INITIAL_PASSWORD`.
 4. **Belangrijk:** koppel een "persistent volume"/schijf gekoppeld aan de
    map `data/` zodat `db.json` niet verloren gaat bij een herstart of nieuwe
    deploy (bij Railway: "Volumes", bij Render: "Disks"). Zonder dit raak je

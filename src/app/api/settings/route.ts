@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readDB, mutateDB } from "@/lib/db";
 import { isAuthed } from "@/lib/auth";
 import bcrypt from "bcryptjs";
+import { validateNewPassword } from "@/lib/adminPassword";
 
 export const dynamic = "force-dynamic";
 
@@ -19,15 +20,23 @@ export async function PATCH(req: NextRequest) {
   }
   const body = await req.json();
 
-  const result = await mutateDB((db) => {
-    const {
-      newPassword,
-      ...rest
-    } = body as typeof body & { newPassword?: string };
+  const {
+    newPassword,
+    adminPasswordHash: _ignoredHash, // de hash mag nooit rechtstreeks overschreven worden
+    ...rest
+  } = body as typeof body & { newPassword?: string; adminPasswordHash?: string };
 
+  if (newPassword !== undefined && newPassword !== "") {
+    const pwError = validateNewPassword(newPassword);
+    if (pwError) {
+      return NextResponse.json({ error: pwError }, { status: 400 });
+    }
+  }
+
+  const result = await mutateDB((db) => {
     Object.assign(db.settings, rest);
 
-    if (newPassword && newPassword.length >= 6) {
+    if (newPassword) {
       db.settings.adminPasswordHash = bcrypt.hashSync(newPassword, 10);
     }
     const { adminPasswordHash, ...safe } = db.settings;

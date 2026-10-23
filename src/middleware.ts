@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
+import { getSessionSecret } from "@/lib/session-secret";
 
 const COOKIE_NAME = "bj_admin_session";
-const SECRET = new TextEncoder().encode(
-  process.env.SESSION_SECRET || "beij-jelle-dev-secret-change-me"
-);
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -16,9 +14,10 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith("/admin")) {
     const token = req.cookies.get(COOKIE_NAME)?.value;
     let valid = false;
-    if (token) {
+    const secret = getSessionSecret();
+    if (token && secret.ok) {
       try {
-        await jwtVerify(token, SECRET);
+        await jwtVerify(token, secret.secret);
         valid = true;
       } catch {
         valid = false;

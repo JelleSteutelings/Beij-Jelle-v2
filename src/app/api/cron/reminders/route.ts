@@ -72,9 +72,9 @@ export async function GET(req: NextRequest) {
       ) {
         const leadLabel =
           longHours >= 20 && longHours <= 28 ? "morgen" : `over ongeveer ${longHours} uur`;
-        if (customer.email) {
+        if (booking.contactEmail || customer.email) {
           sendEmail({
-            to: customer.email,
+            to: (booking.contactEmail || customer.email)!,
             subject: `Herinnering: je afspraak ${leadLabel} bij ${db.settings.businessName}`,
             html: bookingReminderEmail({
               businessName: db.settings.businessName,
@@ -110,9 +110,9 @@ export async function GET(req: NextRequest) {
         now.getTime() < startTime
       ) {
         const leadLabel = `over ongeveer ${shortHours} uur`;
-        if (customer.email) {
+        if (booking.contactEmail || customer.email) {
           sendEmail({
-            to: customer.email,
+            to: (booking.contactEmail || customer.email)!,
             subject: `Herinnering: je afspraak straks bij ${db.settings.businessName}`,
             html: bookingReminderEmail({
               businessName: db.settings.businessName,

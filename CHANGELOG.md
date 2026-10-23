@@ -4,6 +4,32 @@ Overzicht van alle aanpassingen, in omgekeerd-chronologische volgorde (nieuwste
 eerst). Nuttig om snel te zien wat er al gebouwd is, zonder de hele
 gespreksgeschiedenis te moeten doorzoeken.
 
+## 2026-10-14 — V0.28 (beveiliging, stap 1 en 2 uit de security review)
+
+- **Geen standaardwachtwoord en geen terugvalsleutel meer in productie.**
+  De sessiesleutel (`SESSION_SECRET`) moet nu een lange, willekeurige tekst
+  zijn (minstens 32 tekens). De oude terugvalsleutel uit de code en de
+  voorbeeldwaarde uit `.env.example` worden geweigerd. Zonder geldige sleutel
+  is inloggen in het beheer geblokkeerd (duidelijke melding, de publieke
+  website blijft gewoon werken). Het testwachtwoord `jelle2026` werkt enkel
+  nog bij lokaal ontwikkelen (`npm run dev`); in productie wordt het altijd
+  geweigerd. Een nieuwe productiedatabase start zonder wachtwoord: de eerste
+  login gebeurt met de omgevingsvariabele `ADMIN_INITIAL_PASSWORD` (minstens
+  10 tekens), die dan meteen gehasht wordt opgeslagen. Hetzelfde geldt als
+  een oudere database nog het standaardwachtwoord bevat. Een al aangepast
+  wachtwoord blijft werken. Nieuwe wachtwoorden: minstens 10 tekens. De
+  instellingen-API kan de wachtwoord-hash niet meer rechtstreeks overschrijven.
+  Alle wachtwoordcontroles (login, dag heropenen, correctielog, Livegang)
+  gaan via dezelfde controle.
+- **Online boeken lekt geen klantgegevens meer.** De publieke boeking geeft
+  enkel nog "gelukt" terug, geen naam of klant-id. Bij een bestaand
+  telefoonnummer wordt het klantprofiel (naam, e-mail, adres) niet meer
+  gewijzigd. Een afwijkend e-mailadres wordt enkel bij die ene afspraak
+  bewaard (`contactEmail`): bevestiging en herinneringen van die afspraak
+  gaan daarheen. Wijkt de ingevulde naam of het e-mailadres af van het
+  profiel, dan staat er een opmerking bij de afspraak in de agenda. Ongeldige
+  invoertypes worden geweigerd.
+
 ## 2026-09-03 (avond)
 
 - **Instellingen: sfeerfoto voorpagina zelf vervangen.** Nieuwe sectie

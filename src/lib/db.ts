@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import bcrypt from "bcryptjs";
+import { DEV_DEFAULT_PASSWORD, isProduction } from "./adminPassword";
 import { DB } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -42,7 +43,10 @@ function defaultDB(): DB {
       },
       reminderLongHours: 24,
       reminderShortHours: 2,
-      adminPasswordHash: bcrypt.hashSync("jelle2026", 10),
+      // In productie start een nieuwe database zonder wachtwoord: de eerste
+      // login gebeurt met ADMIN_INITIAL_PASSWORD (zie login-route). Enkel bij
+      // lokaal ontwikkelen is er een testwachtwoord.
+      adminPasswordHash: isProduction() ? "" : bcrypt.hashSync(DEV_DEFAULT_PASSWORD, 10),
       slotStepMinutes: 15,
       studentDiscountPercent: 10,
     },

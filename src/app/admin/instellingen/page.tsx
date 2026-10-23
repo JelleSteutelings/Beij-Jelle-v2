@@ -396,8 +396,8 @@ export default function InstellingenPage() {
   }
 
   async function savePassword() {
-    if (newPassword.length < 6) {
-      flash("Wachtwoord moet minstens 6 tekens hebben.", true);
+    if (newPassword.length < 10) {
+      flash("Wachtwoord moet minstens 10 tekens hebben.", true);
       return;
     }
     const res = await fetch("/api/settings", {
@@ -406,7 +406,12 @@ export default function InstellingenPage() {
       body: JSON.stringify({ newPassword }),
     });
     if (!res.ok) {
-      flash("Wijzigen van wachtwoord is mislukt. Probeer opnieuw.", true);
+      let msg = "Wijzigen van wachtwoord is mislukt. Probeer opnieuw.";
+      try {
+        const d = await res.json();
+        if (d?.error) msg = d.error;
+      } catch {}
+      flash(msg, true);
       return;
     }
     setNewPassword("");

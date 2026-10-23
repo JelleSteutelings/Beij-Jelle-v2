@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
+import { verifyAdminPassword } from "@/lib/adminPassword";
 import { mutateDB, readDB } from "@/lib/db";
 import { isAuthed } from "@/lib/auth";
 import { DB } from "@/lib/types";
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
   const keys = lists.filter(isResettableKey);
 
   const result = await mutateDB((db) => {
-    const valid = bcrypt.compareSync(password, db.settings.adminPasswordHash);
+    const valid = verifyAdminPassword(password, db.settings.adminPasswordHash);
     if (!valid) {
       return { error: "Ongeldig wachtwoord", status: 401 as const };
     }

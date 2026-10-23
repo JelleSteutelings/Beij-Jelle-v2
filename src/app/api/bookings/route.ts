@@ -31,7 +31,17 @@ export async function POST(req: NextRequest) {
     notes?: string;
   };
 
-  if (!serviceId || !start || !customer?.name || !customer?.phone) {
+  if (
+    typeof serviceId !== "string" ||
+    typeof start !== "string" ||
+    typeof customer?.name !== "string" ||
+    typeof customer?.phone !== "string" ||
+    (customer.email !== undefined && typeof customer.email !== "string") ||
+    !serviceId ||
+    !start ||
+    !customer.name.trim() ||
+    !customer.phone.trim()
+  ) {
     return NextResponse.json(
       { error: "Vul dienst, tijdstip, naam en telefoonnummer in." },
       { status: 400 }
@@ -66,12 +76,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // find or create customer (match op genormaliseerd telefoonnummer, zodat
-    // "+32 499 12 34 56" en "0499123456" als hetzelfde nummer herkend worden)
+    // Zoek de klant op via het genormaliseerd telefoonnummer, zodat
+    // "+32 499 12 34 56" en "0499123456" als hetzelfde nummer herkend worden.
+    //
+    // BEVEILIGING: dit is een publiek eindpunt. Voor een bestaande klant
+    // wijzigen we daarom NOOIT het klantprofiel (naam, e-mail, adres) en
+    // geven we niets van het profiel terug aan de boeker. Anders kan iemand
+    // met andermans telefoonnummer gegevens achterhalen of een eigen
+    // e-mailadres op dat profiel zetten.
     const normalizedPhone = normalizePhone(customer.phone);
     let existingCustomer = db.customers.find(
       (c) => normalizePhone(c.phone) === normalizedPhone
     );
+    let contactEmail: string | undefined;
+    let extraNote = "";
     if (!existingCustomer) {
       existingCustomer = {
         id: genId("cus"),
@@ -83,8 +101,25 @@ export async function POST(req: NextRequest) {
       };
       db.customers.push(existingCustomer);
     } else {
-      if (customer.email && !existingCustomer.email) existingCustomer.email = customer.email;
-      if (customer.address && !existingCustomer.address) existingCustomer.address = customer.address;
+      // Het ingevulde e-mailadres hoort enkel bij déze afspraak.
+      const typedEmail = (customer.email || "").trim();
+      const profileEmail = (existingCustomer.email || "").trim();
+      if (typedEmail && typedEmail.toLowerCase() !== profileEmail.toLowerCase()) {
+        contactEmail = typedEmail;
+      }
+      // Hint voor Jelle in de agenda als de online ingevulde gegevens
+      // afwijken van het klantprofiel.
+      const diffs: string[] = [];
+      if (
+        customer.name.trim().toLowerCase() !==
+        existingCustomer.name.trim().toLowerCase()
+      ) {
+        diffs.push(`naam: ${customer.name.trim()}`);
+      }
+      if (contactEmail) diffs.push(`e-mail: ${contactEmail}`);
+      if (diffs.length > 0) {
+        extraNote = `[Online geboekt met afwijkende gegevens — ${diffs.join("; ")}]`;
+      }
     }
 
     const startDate = new Date(start);
@@ -101,12 +136,13 @@ export async function POST(req: NextRequest) {
       status: (isWithinUsualSlots ? "confirmed" : "pending") as
         | "confirmed"
         | "pending",
-      notes: notes || "",
+      notes: [notes || "", extraNote].filter(Boolean).join("\n"),
+      ...(contactEmail ? { contactEmail } : {}),
       blocks: buildBookingBlocks(blocks),
       createdAt: new Date().toISOString(),
     };
     db.bookings.push(booking);
-    return { booking, service, isWithinUsualSlots };
+    return { booking, service, isWithinUsualSlots, contactEmail };
   });
 
   if ("error" in result) {
@@ -128,6 +164,7 @@ export async function POST(req: NextRequest) {
     timeZone: "Europe/Brussels",
   });
 
+  // Bevestiging gaat naar het adres dat bij deze boeking is ingevuld.
   if (customer.email) {
     const emailPromise = result.isWithinUsualSlots
       ? sendEmail({
@@ -175,5 +212,10 @@ export async function POST(req: NextRequest) {
       });
   sendWhatsApp({ to: customer.phone, body: whatsappBody }).catch(() => {});
 
-  return NextResponse.json(result);
+  // Publiek eindpunt: geef enkel terug wat de website nodig heeft, nooit
+  // klantgegevens (naam, id, ...) uit het klantenbestand.
+  return NextResponse.json({
+    ok: true,
+    isWithinUsualSlots: result.isWithinUsualSlots,
+  });
 }

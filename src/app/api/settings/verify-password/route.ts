@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
+import { verifyAdminPassword } from "@/lib/adminPassword";
 import { readDB } from "@/lib/db";
 import { isAuthed } from "@/lib/auth";
 
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   const { password } = await req.json();
   const db = readDB();
 
-  const valid = bcrypt.compareSync(password || "", db.settings.adminPasswordHash);
+  const valid = verifyAdminPassword(password || "", db.settings.adminPasswordHash);
   if (!valid) {
     return NextResponse.json({ error: "Ongeldig wachtwoord" }, { status: 401 });
   }

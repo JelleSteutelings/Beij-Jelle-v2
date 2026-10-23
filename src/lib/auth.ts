@@ -1,22 +1,24 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { getSessionSecret } from "./session-secret";
 
 const COOKIE_NAME = "bj_admin_session";
-const SECRET = new TextEncoder().encode(
-  process.env.SESSION_SECRET || "beij-jelle-dev-secret-change-me"
-);
 
 export async function signSessionToken(): Promise<string> {
+  const s = getSessionSecret();
+  if (!s.ok) throw new Error(s.reason);
   return new SignJWT({ role: "admin" })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("30d")
-    .sign(SECRET);
+    .sign(s.secret);
 }
 
 export async function verifySessionToken(token: string): Promise<boolean> {
+  const s = getSessionSecret();
+  if (!s.ok) return false;
   try {
-    await jwtVerify(token, SECRET);
+    await jwtVerify(token, s.secret);
     return true;
   } catch {
     return false;

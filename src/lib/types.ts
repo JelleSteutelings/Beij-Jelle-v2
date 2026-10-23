@@ -44,6 +44,10 @@ export type Booking = {
   end: string; // ISO datetime
   status: BookingStatus;
   notes?: string;
+  // E-mailadres dat bij het online boeken is opgegeven, enkel als het
+  // verschilt van het adres op het klantprofiel. Bevestiging en herinneringen
+  // van déze afspraak gaan daarheen; het klantprofiel zelf blijft ongewijzigd.
+  contactEmail?: string;
   blocks?: BookingBlock[]; // snapshot van de dienst-blokken op moment van boeken
   remindedLongAt?: string;
   remindedShortAt?: string;
